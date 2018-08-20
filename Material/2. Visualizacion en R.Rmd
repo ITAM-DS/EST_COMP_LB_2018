@@ -1,0 +1,226 @@
+---
+title: "Visualización en R"
+author: "Leon Berdichevsky"
+date: "14 de agosto de 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Visualización
+
+Para la visulización de datos, en este curso utilizaremos el paquete para graficar ggplot2. Podemos cargar ggplot2 directamente o podemos cargar el paquete para análsis de datos tydiverse que contiene al paquete ggplot2:
+```{r}
+library(tidyverse) # Cargamos el paquete en nuestra sesión
+```
+
+Cubriremos los siguientes puntos:
+
+* Gráficas de dispersión.  
+* Distintos tipos de gráficas. 
+* Páneles de gráficas.
+
+
+### Gráficas de dispersión
+
+Usaremos la base de datos `mpg` que se incluye en R básico; se puede encontrar información de esta base de datos tecleando `?mpg`.
+
+```{r}
+#?mpg
+glimpse(mpg)
+```
+
+Para graficar, utilizaremos la función ggplot del paquete ggplot2. Para entender la *estructura de capas* de la función ggplot, consideremos una gráfica de dispersión simple:
+
+```{r, fig.width = 5, fig.height = 4}
+ggplot(data = mpg) + 
+  geom_point(mapping = aes(x = displ, y = hwy))
+```
+
+La estructura del código es como sigue:
+
++ En ggplot2 se inicia una gráfica con la instrucción `ggplot()`. 
++ Debemos especificar explicitamente que base de datos usamos, este es el primer argumento en la función ggplot. 
++ Una vez que creamos la base añadimos *capas*. La primera capa esta dada por una función *geométrica* `geom_tipodegrafica()`.
++ Dentro de `aes()` escribimos las variables que queremos graficar y el atributo de la gráfica al que queremos mapearlas. 
++ Es posible agregar otros atributos a la gráfica utilizando más capas.
+
+En el ejemplo, la función `geom_point()` añade una capa de puntos. Hay muchas funciones
+*geométricas* incluídas en ggplot2: `geom_line()`, `geom_boxplot()`, `geom_histogram`, etc. Cada una acepta distintos argumentos para mapear las variables en los datos a características estéticas de la gráfica. En el ejemplo de arriba mapeamos la variable `displ` al eje x y la variable `hwy` al eje y. 
+
+La función `geom_point()` nos permite representar más variables usando 
+la forma, color y/o tamaño del punto. Esta flexibilidad nos permite entender o 
+descubrir patrones más interesantes en los datos.
+
+```{r, fig.width = 5.5, fig.height = 4}
+ggplot(mpg) + 
+  geom_point(aes(x = displ, y = hwy, color = class))
+```
+
+**Ejercicio:** Experimenta con los _aesthetics_ color (color), tamaño (size) y forma (shape). ¿Qué diferencia hay entre las variables categóricas y las continuas? ¿Qué ocurre cuando combinas varios _aesthetics_?
+
+El mapeo de las propiedades estéticas se denomina escalamiento y depende del tipo de variable. Las variables discretas (por ejemplo, género, escolaridad, país, etc.) se mapean a distintas escalas que las variables continuas (variables numéricas como por ejemplo, edad, estatura, etc.). Los _defaults_ para algunos atributos son (estos se pueden modificar):
+
+&nbsp;             |Discreta                    |Continua
+-------------------|----------------------------|---------
+Color (`color`)    |Arcoiris de colores         |Gradiente de colores
+Tamaño (`size`)    |Escala discreta de tamaños  |Mapeo lineal entre el área y el valor
+Forma (`shape`)    |Distintas formas            |No aplica
+Transparencia (`alpha`) | No aplica             |Mapeo lineal a la transparencia 
+
+
+### Distintos tipos de gráficas
+
+Los `geom`'s controlan el tipo de gráfica:
+
+```{r, fig.width = 5, fig.height = 4}
+p <- ggplot(mpg, aes(x = displ, y = hwy))
+p + geom_line() # en este caso no es una buena gráfica
+```
+
+**Ejercicio:** ¿Cuál de las siguientes gráficas es más apropiada? ¿Por qué?
+```{r, fig.width = 5, fig.height = 4}
+p <- ggplot(mpg, aes(x = cty, y = hwy))
+p + geom_point() 
+p + geom_jitter() 
+```
+
+**Pregunta:** ¿Cómo podemos mejorar la siguiente gráfica?
+```{r, fig.width = 5, fig.height = 4}
+ggplot(mpg, aes(x = class, y = hwy)) + 
+  geom_point() 
+```
+
+**Respuesta:** Intentemos reordenar los niveles de la variable clase:
+```{r, fig.width = 5, fig.height = 4}
+ggplot(mpg, aes(x = reorder(class, hwy), y = hwy)) + 
+    geom_point() 
+```
+
+Podemos probar otros `geom`s
+```{r, fig.width = 5, fig.height = 4}
+ggplot(mpg, aes(x = reorder(class, hwy), y = hwy)) + 
+    geom_jitter() 
+ggplot(mpg, aes(x = reorder(class, hwy), y = hwy)) + 
+    geom_boxplot() 
+```
+
+También podemos usar más de un `geom`:
+```{r, fig.width = 5, fig.height = 3.5}
+ggplot(mpg, aes(x = reorder(class, hwy), y = hwy)) + 
+    geom_jitter() +
+    geom_boxplot()
+```
+
+**Ejercicio:** Lee la ayuda de _reorder_ y repite las gráficas anteriores ordenando por la mediana de _hwy_. ¿Cómo harías para graficar los puntos encima de las cajas de boxplot?
+
+
+### Páneles de Gráficas
+Veamos ahora como hacer páneles de gráficas; la idea es hacer varios múltiplos de 
+una gráfica donde cada múltiplo representa un subconjunto de los datos. Se trata de una 
+práctica muy útil para explorar relaciones condicionales.
+
+En ggplot podemos usar la función `facet\_wrap()` para hacer páneles dividiendo los datos 
+de acuerdo a las categorías de una sola variable:
+```{r, fig.width = 5, fig.height = 5}
+ggplot(mpg, aes(x = displ, y = hwy)) + 
+  geom_jitter() +
+  facet_wrap(~ cyl)
+```
+
+También podemos hacer una cuadrícula de 2 dimensiones usando `facet\_grid(filas~columnas)`: 
+
+```{r, fig.width = 8, fig.height = 2.5}
+ggplot(mpg, aes(x = displ, y = hwy)) + 
+  geom_jitter() +
+  facet_grid(.~ class)
+```
+```{r, fig.width = 7, fig.height = 5}
+ggplot(mpg, aes(x = displ, y = hwy)) + 
+  geom_jitter() +
+  facet_grid(drv ~ class)
+```
+
+Los páneles pueden ser muy útiles para entender relaciones en nuestros datos. 
+
+Consideremos la base de datos `airquality` de R básico, 
+```{r}
+glimpse(airquality)
+head(airquality)
+str(airquality)
+```
+
+En la siguiente gráfica es difícil entender si existe una relación entre radiación solar y ozono:
+```{r, fig.width = 4, fig.height = 3}
+data(airquality)
+ggplot(airquality, aes(x = Solar.R, y = Ozone)) + 
+  geom_point() 
+```
+
+Veamos que ocurre si realizamos páneles separando por velocidad del viento. Para ello utilizamos la instrucción `cut2` del paquete `Himsc` para transformar esta última variable en categórica:
+```{r, fig.width = 7, fig.height = 3, message = FALSE, warning = FALSE}
+#install.packages("Hmisc")
+library(Hmisc)
+airquality$Wind.cat <- cut2(airquality$Wind, g = 3) 
+ggplot(airquality, aes(x = Solar.R, y = Ozone)) + 
+  geom_point() +
+  facet_wrap(~ Wind.cat)
+```
+
+Podemos agregar un suavizador (`loess`) para ver mejor la relación de las 
+variables en cada panel:
+```{r, fig.width = 7, fig.height = 3, warning = FALSE}
+ggplot(airquality, aes(x = Solar.R, y = Ozone)) + 
+  geom_point() +
+  facet_wrap(~ Wind.cat) + 
+  geom_smooth(span = 3)
+```
+
+**Ejercicio:** Escribe algunas preguntas que se puedan contestar con estos datos.
+
+En ocasiones es necesario realizar transformaciones u obtener subconjuntos de los 
+datos para poder responder preguntas de nuestro interés.
+
+Consideremos ahora la base de datos `babynames` del paquete con el mismo nombre:
+```{r}
+library(babynames)
+glimpse(babynames)
+```
+
+Supongamos que queremos ver la tendencia del nombre "John"; para ello debemos 
+generar un subconjunto de la base de datos:
+```{r,  fig.width = 5, fig.height = 3}
+babynames_John <- babynames[babynames$name == "John", ]
+ggplot(babynames_John, aes(x = year, y = prop)) +
+  geom_point()
+```
+```{r,  fig.width = 5, fig.height = 3.7}
+ggplot(babynames_John, aes(x = year, y = prop, color = sex)) +
+  geom_line()
+```
+
+La preparación de los datos es un aspecto muy importante del análisis y suele ser
+la fase que lleva más tiempo. Es por ello que el siguiente tema se enfocará en 
+herramientas para hacer transformaciones de manera eficiente.
+
+**Tarea:** Explora la base de datos gapminder. Estos datos están incluidos en el paquete del mismo nombre; para acceder a ellos basta con cargar el paquete:
+
+```{r}
+# install.packages("gapminder")
+library(gapminder)
+gapminder
+```
+
+Realiza al menos 3 gráficas y explica las relaciones que encuentres. Debes usar lo que revisamos en estas notas (al menos una de las gráficas debe ser de un pánel de gráficas). 
+
+
+### Recursos
+
+* Una muy buena primera referencia para Visualización son las notas **Introducción a la visualización de datos** de Felipe González, y las referencias incluidas en dichas notas.
+* Google, stackoverflow.
+* Para aprender más de ggplot pueden ver la documentación con ejemplos en la 
+página de [ggplot2](http://ggplot2.tidyverse.org).
+* Otro recurso muy útil es el [acordeón de ggplot](https://www.rstudio.com/wp-content/uploads/2015/04/ggplot2-spanish.pdf).
+
