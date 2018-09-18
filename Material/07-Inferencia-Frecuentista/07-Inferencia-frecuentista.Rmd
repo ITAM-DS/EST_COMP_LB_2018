@@ -265,8 +265,6 @@ Hacemos la estimación _plug-in_ $\hat{\theta}$:
 ```{r calif_700}
 sum(prim_muestra$esp3 > 700) / n
 ```
-</div>
-
 
 
 El principio del _plug-in_ provee de una estimación puntual de un parámetro, más no contiene información acerca de la **precisión** de la estimación. 
@@ -320,14 +318,14 @@ $$\hat{\sigma}=\sigma_{P_n} = \bigg\{\frac{1}{n}\sum_{i=1}^n(x_i-\bar{x})^2\bigg
 
 por lo que la estimación *plug_in* del error estándar de $\bar{x}$ es:
 $$\hat{se}(\bar{x})=se_{P_n}(\bar{x})=\sigma_{P_n}/\sqrt{n}=\bigg\{\frac{1}{n^2}\sum_{i=1}^n(x_i-\bar{x})^2\bigg\}^{1/2}$$
-en la notación de la primera igualdad enfatizamos que la estimación $plug-in$ de un parámetro de la distribución $Q$ se puede calcular a partir de la muestra $\textbf{x}$; esto es, depende de la distribución empírica $P_n$ de $P$.  
+en la notación de la primera igualdad enfatizamos que la estimación _plug-in_ de un parámetro de la distribución inducida $Q$ se puede calcular a partir de la muestra $\textbf{x}$; esto es, depende de la distribución empírica $P_n$ de $P$.  
 
 Notemos que usamos el principio del _plug-in_ en dos ocasiones:
 
 1. Primero para 
 estimar la esperanza $\mu_P$ mediante $\bar{x}=\mu_{P_n}$.
 
-2. Posteriormente para estimar el error estándar $se_P(\bar{x})$. 
+2. Posteriormente para estimar el error estándar $se_Q(\bar{x})$ mediante $se_{P_n}(\bar{x})$. 
 
 En términos generales, esperamos que $\bar{x}$ 
 este a una distancia de $\mu_P$ menor a un error estándar el 68% del tiempo, 
@@ -491,18 +489,18 @@ B_muestras
 
 
 **Ejemplo: Componentes principales: calificaciones en exámenes.**
-Los datos _marks_ (Mardia, Kent y Bibby, 1979) contienen una muestra que consiste en los puntajes de 88 
-estudiantes en 5 pruebas: mecánica, vectores, álgebra, análisis y estadística.
+Los datos _marks_ (Mardia, Kent y Bibby, 1979) contienen una muestra que consiste en los puntajes de 88 estudiantes en 5 pruebas: mecánica, vectores, álgebra, análisis y estadística.
 Cada renglón corresponde a la calificación de un estudiante en cada prueba.
 
 ```{r leer_marks}
 marks <- read_csv("data/marks.csv")
 glimpse(marks)
 marks <- select(marks, -id)
+head(marks)
 ```
-La muestra $\textbf{x}$ es una base de datos de $88 \times 5$, y donde $i$-ésima fila corresponde a al conjunto de medidas $\textbf{x_i}^*$ de la unidad $u_i$.
+La muestra $\textbf{x}$ es una base de datos de $88 \times 5$, y donde $i$-ésima fila corresponde a al conjunto de medidas $x_i$ de la unidad $u_i$.
 
-Un análisis de componentes principales proseguiría como sigue:
+Un análisis de componentes principales sería como sigue:
 ```{r pc, fig.height=4, fig.width=4}
 pc_marks <- princomp(marks)
 summary(pc_marks)
@@ -521,8 +519,7 @@ covarianzas empírica $G$ (estimaciones _plug-in_)
 $$G_{jk} = \frac{1}{88}\sum_{i=1}^88(x_{ij}-\bar{x_j})(x_{ik}-\bar{x_k})$$
 
 para $j,k=1,2,3,4,5$, y donde $\bar{x_j} = \sum_{i=1}^88 x_{ij} / 88$ (la media 
-de la i-ésima columna).
-
+de la $i$-ésima columna). La matriz de covarianzas empírica es:
 ```{r}
 G <- cov(marks) * 87 / 88
 G
@@ -530,8 +527,7 @@ G
 
 Los **pesos** $\hat{\lambda}_i$ y las **componentes principales** $\hat{\nu}_i$ estimadas son los valores y vectores propios de la matriz de covarianzas $G$; estos se calculan a través de una 
 serie de de manipulaciones algebraicas que requieren cálculos del orden de $p^3$
-(cuando $G$ es una matriz de tamaño $p\times p$).
-
+(cuando $G$ es una matriz de tamaño $p\times p$):
 ```{r}
 eigen_G <- eigen(G)
 lambda <- eigen_G$values
@@ -657,7 +653,7 @@ función.-->
 
 Introdujimos el bootstrap en el contexto de muestras aleatorias, esto es,
 suponiendo que las observaciones son independientes; en este escenario basta con
-aproximar la distribución desconocida $P$ usando la dsitribución empírica $P_n$, 
+aproximar la distribución desconocida $P$ usando la distribución empírica $P_n$, 
 y el cálculo de los estadísticos es inmediato. Hay casos en los que el mecanismo
 que generó los datos es más complicado, por ejemplo, cuando tenemos dos muestras, en diseños de encuestas complejas o en series de tiempo.
 
@@ -730,8 +726,8 @@ Usualmente, como veremos en un momento, para el cálculo de intervalos de confia
 
 Para estudiar métodos de construcción de intervalos de confianza usaremos el siguiente ejemplo:
 
-**Ejemplo:** supongamos que queremos estimar la kurtosis de una base de datos que consta de
-799 tiempos de espera entre pulsasiones de un nervio (Cox, Lewis 1976). El estimador *plug-in* de la kurtosis es:
+**Ejemplo:** supongamos que queremos estimar la asimetría de una base de datos que consta de
+799 tiempos de espera entre pulsasiones de un nervio (Cox, Lewis 1976). El estimador *plug-in* de la asimetría es:
 
 $$\hat{\theta} = t(P_n) =\frac{1/n \sum_{i=1}^n(x_i-\hat{\mu})^3}{\hat{\sigma}^3}$$
 
@@ -742,45 +738,48 @@ nerve <- read_delim("data/nerve.txt", "\t", escape_double = FALSE,
 nerve_long <- tidyr::gather(nerve, col, val, X1:X6) %>%
     filter(!is.na(val))
 
-kurtosis <- function(x){
+skewness <- function(x){
     n <- length(x)
     1 / n * sum((x - mean(x)) ^ 3) / sd(x) ^ 3 
 }
 # Calculamos el estadístico
-theta_hat <- kurtosis(nerve_long$val)
+theta_hat <- skewness(nerve_long$val)
 theta_hat
 # Creamos una muestre bootstrap y calculamos una réplica del estadístico
-kurtosis_boot <- function(x, n){
+skewness_boot <- function(x, n){
   x_boot <- sample(x, n, replace = TRUE)
-  kurtosis(x_boot)
+  skewness(x_boot)
 }
 # Calculamos B=2,000 réplicas
 B <- 2000
-kurtosis <- rerun(B, kurtosis_boot(nerve_long$val, length(nerve_long$val))) %>% 
+skewness <- rerun(B, skewness_boot(nerve_long$val, length(nerve_long$val))) %>% 
   flatten_dbl()
-# El estimador bootstrap del error estándar de la kurtosis es
-sd(kurtosis)
+# El estimador bootstrap del error estándar de la asimetría es
+sd(skewness)
 
 ```
 
 1. El **Intervalo Normal** o **Intervalo Estándar**: Si el estadístico $\hat{\theta}$ tiene una distribución normal estándar, entonces el intervalo de confianza con un nivel de confianza de $\gamma = 1-2\alpha$ es 
 
-$$(\theta_{\alpha},\theta_{1-\alpha})=(\hat{\theta}- z^{(1-\alpha)}\cdot \hat{se}(\hat{\theta}), \hat{\theta}-z^{(\alpha)}\cdot \hat{se}(\hat{\theta}))$$
-donde $z^{(1-\alpha)=-z^{(\alpha)$ es el cuantil de orden $1-\alpha$ de la distribución Normal estándar. 
+$$(\theta_{\alpha},\theta_{1-\alpha})=(\hat{\theta}- z^{(1-\alpha)}\cdot se_Q(\hat{\theta}), \hat{\theta}-z^{(\alpha)}\cdot se_Q(\hat{\theta}))$$
+donde $z^{(1-\alpha)}=-z^{(\alpha)}$ es el cuantil de orden $1-\alpha$ de la distribución Normal estándar. Si $\hat{\theta}$ no tiene una distribución normal estándar pero su distribución se puede aproximar por una distribución normal estándar entonces el intervalo normal es una aproximación al intervalo de confianza. 
+
+Ya que desconocemos la distribución de probabilidad $Q$ del estadístico $\hat{\theta}$, el intervalo de confianza normal se aproxima mediante:
+$$(\hat{\theta}- z^{(1-\alpha)}\cdot se_Q(\hat{\theta}), \hat{\theta}-z^{(\alpha)}\cdot se_Q(\hat{\theta})) \approx (\hat{\theta}- z^{(1-\alpha)}\cdot \hat{se}(\hat{\theta}), \hat{\theta}-z^{(\alpha)}\cdot \hat{se}(\hat{\theta}))$$
 
 Si elejimos un nivel de confianza del $95%$ obtenemos los siguientes extremos del intervalo:
 ```{r, results="hold"}
-li_normal <- round(theta_hat - 1.96 * sd(kurtosis), 2)
+li_normal <- round(theta_hat - 1.96 * sd(skewness), 2)
 li_normal
-ls_normal <- round(theta_hat + 1.96 * sd(kurtosis), 2)
+ls_normal <- round(theta_hat + 1.96 * sd(skewness), 2)
 ls_normal
 ```
 
 Veamos un histograma de las replicaciones bootstrap de $\hat{\theta}*$
 
 ```{r, fig.width=8.5, fig.height=4}
-nerve_kurtosis <- data_frame(kurtosis)
-hist_nerve <- ggplot(nerve_kurtosis, aes(x = kurtosis)) + 
+nerve_skewness <- data_frame(skewness)
+hist_nerve <- ggplot(nerve_skewness, aes(x = skewness)) + 
         geom_histogram(binwidth = 0.05, fill = "gray30") +
             geom_vline(xintercept = c(li_normal, ls_normal, theta_hat), 
             color = c("black", "black", "red"), alpha = 0.5)
@@ -788,9 +787,9 @@ hist_nerve <- ggplot(nerve_kurtosis, aes(x = kurtosis)) +
 
 Podemos hacer una prueba gráfica de normalidad.
 ```{r, fig.width=8.5, fig.height=4}
-qq_nerve <- ggplot(nerve_kurtosis) +
+qq_nerve <- ggplot(nerve_skewness) +
   geom_abline(color = "red", alpha = 0.5) +
-  stat_qq(aes(sample = kurtosis), dparams = list(mean = mean(kurtosis), sd = sd(kurtosis))) 
+  stat_qq(aes(sample = skewness), dparams = list(mean = mean(skewness), sd = sd(skewness))) 
 
 grid.arrange(hist_nerve, qq_nerve, ncol = 2, newpage = FALSE)
 ```
@@ -800,26 +799,26 @@ Veamos como se comparan los cuantiles de la estimación de la distribución de
 $\hat{\theta}$ con los cuantiles de una normal:
 
 ```{r, results="hold"}
-comma(q_kurt <- quantile(kurtosis, probs = c(0.025, 0.05, 0.1, 0.9, 0.95, 0.975)))
+comma(q_kurt <- quantile(skewness, probs = c(0.025, 0.05, 0.1, 0.9, 0.95, 0.975)))
 comma(qnorm(p = c(0.025, 0.05, 0.1, 0.9, 0.95, 0.975), mean = theta_hat, 
-  sd = sd(kurtosis)))
+  sd = sd(skewness)))
 ```
 
 Este intervalo no es preciso cuando $\hat{\theta}$ no se distribuye aproximadamente Normal. Por lo que el último análisis sugiere usar los cuantiles del histograma bootstrap para definir los 
 límites de los intervalos de confianza:
 
 2. **Intervalo Percentil**: Sea $Q$ la distribución de probabilida de $\hat{\theta}$ y denotemos por $G$ la función de distribución acumulada. El intervalo percentil de $1-2\alpha$ se define por los 
-percentiles $\alpha$ y $1-\alpha$ de $G$
-$$(\theta_{\alpha},\theta_{1-\alpha})= (G^{-1}(\alpha), G^{-1}(1-\alpha))$$
-La distribución bootstrap es la distribución empírica de $Q$. Por lo tanto, podemos aproximar $G$ por la distribución acumulada bootstrap $G^{-1}(\alpha) \approx \hat{\theta}^*(\alpha)$, esto es, el percentil 
+percentiles $\alpha$ y $1-\alpha$ de $G$: 
+$$(\theta_{\alpha},\theta_{1-\alpha}) = (G^{-1}(\alpha), G^{-1}(1-\alpha))$$
+La distribución bootstrap es la distribución empírica de $Q$. Por lo tanto, podemos aproximar $G$ por la distribución acumulada bootstrap $G^{-1}(\alpha) \approx \hat{\theta}_B^*(\alpha)$, esto es, el percentil 
 $100\cdot \alpha$ de la distribución bootstrap, por lo que podemos aproximar el
 intervalo percentil mediante el intervalo bootstrap: 
-$$(\theta_{\alpha},\theta_{1-\alpha})\approx(\hat{\theta}^*(\alpha),\hat{\theta}^*(1-\alpha))$$
+$$(G^{-1}(\alpha), G^{-1}(1-\alpha))\approx(\hat{\theta}_B^*(\alpha),\hat{\theta}_B^*(1-\alpha))$$
 En la situación bootstrap _ideal_, 
 donde el número de replicaciones bootstrap $B$ es infinito, el intrvalo bootstrap converge al intervalo percentil.
 
 <div style="caja">
-Aproximación bootstrap del intervalo percentil:
+El algoritmo para la aproximación bootstrap del intervalo percentil es:
 
 + Generamos B muestras bootstrap independientes $\textbf{x}^{*1},..., \textbf{x}^{*B}$ y calculamos las replicaciones $\hat{\theta}^{*b}=s(x^{*b}).$  
 
@@ -830,10 +829,10 @@ de confianza con $1-2\alpha$ como
 $$(\theta_{\alpha},\theta_{1-\alpha})\approx(\hat{\theta}^*_B(\alpha),\hat{\theta}^*_B(1-\alpha))$$
 </div>
 
-**Ejemplo:** En nuestro ejemplo de la kurtosis, los cuantiles muestrales son:
+**Ejemplo:** En nuestro ejemplo de la asimetría, los cuantiles muestrales son:
 ```{r, fig.width=4, fig.height=4}
-ggplot(arrange(nerve_kurtosis, kurtosis)) + 
-    stat_ecdf(aes(x = kurtosis)) + 
+ggplot(arrange(nerve_skewness, skewness)) + 
+    stat_ecdf(aes(x = skewness)) + 
     geom_segment(data = data_frame(x = c(-Inf, -Inf, q_kurt[c(1, 6)]), 
         xend = q_kurt[c(1, 6, 1, 6)], y = c(0.025, 0.975, 0, 0), 
         yend = c(0.025, 0.975, 0.025, 0.975)), aes(x = x, xend = xend, y = y, 
@@ -844,36 +843,40 @@ ggplot(arrange(nerve_kurtosis, kurtosis)) +
 
 Los extremos del intervalo bootstrap son:
 ```{r, results = "hold"}
-ls_per <- round(quantile(kurtosis, prob = 0.975), 2)
-li_per <- round(quantile(kurtosis, prob = 0.025), 2)
+ls_per <- round(quantile(skewness, prob = 0.975), 2)
+li_per <- round(quantile(skewness, prob = 0.025), 2)
 stringr::str_c(li_normal, ls_normal, sep = ",")
 stringr::str_c(li_per, ls_per, sep = ",")
 ```
 
 Si la distribución de $\hat{\theta}$ es aproximadamente normal, entonces 
 los intervalos normales y de percentiles serán similares. El teorema del 
-límite central nos dice que conforme $n$ se acerca a infinito el histograma 
+límite central nos dice que conforme el tamaño de la muestra $n$ se acerca a infinito el histograma 
 bootstrap adquirirá una forma similar a la normal; sin embargo, cuando el 
 tamaño de muestra es chico habrá diferencias.
 
-<!--Con el fin de comparar los intervalos creamos un ejemplo de simulación 
+**Ejemplo:** Con el fin de comparar los intervalos normal y percentil creamos un ejemplo de simulación 
 (ejemplo tomado de Effron y Tibshirani), generamos una muestra de tamaño 10 de una 
-distribución normal estándar, supongamos que el parámetro de interés es 
-$e^{\mu}$ donde $\mu$ es la media poblacional.
+distribución normal estándar.
+
+Supongamos que el parámetro de interés es $\theta=e^{\mu}$ donde $\mu$ es la media poblacional.
 
 ```{r, fig.width=8.5, fig.height=4}
 set.seed(137612)
+# Muestra de una distribución normal estándar de tamaña n=10
 x <- rnorm(10)
-
+# Creamos una muestra bootstrap y calculamos la replicación 
 boot_sim_exp <- function(){
   x_boot <- sample(x, size = 10, replace = TRUE)
   exp(mean(x_boot))
 }
+# Consideramos B=1,000 replicaciones
 theta_boot <- rerun(1000, boot_sim_exp()) %>% flatten_dbl()
 theta_boot_df <- data_frame(theta_boot)
-
+# Creamos el histograma boostrap (replicaciones)
 hist_emu <- ggplot(theta_boot_df, aes(x = theta_boot)) +
     geom_histogram(fill = "gray30", binwidth = 0.08) 
+# Hacemos la prueba gráfica de normalidad QQ
 qq_emu <- ggplot(theta_boot_df) +
     geom_abline(color = "red", alpha = 0.5) +
     stat_qq(aes(sample = theta_boot), 
@@ -922,30 +925,31 @@ round(quantile(log(theta_boot), prob = 0.975), 2)
 ```
 
 La transformación logarítmica convierte la distribución de $\hat{\theta}$ en 
-normal y por tanto los intervalos de $\hat{\phi}^*=log(\hat{\theta}^*)$ son
-similares. La forma normal no es sorprendente pues  $\hat{\phi}^*=\bar{x}^*$. 
+normal y por tanto los intervalos de $\hat{\phi}=log(\hat{\theta})$ son
+similares. La forma normal no es sorprendente pues  $\hat{\phi}=\bar{x}$. 
 
-Si mapeamos los intervalos normales calculados para $log(\hat{\theta}^*)$ de 
+Si mapeamos los intervalos normales calculados para $log(\hat{\theta})$ de 
 regreso a la escala de $\theta$ obtenemos intervalos similares a los calculados
-para $\hat{\theta}^*$ usando percentiles:
+para $\hat{\theta}$ usando percentiles:
 
 ```{r}
 exp(round(mean(x) - 1.96 * sd(log(theta_boot)), 2))
 exp(round(mean(x) + 1.96 * sd(log(theta_boot)), 2))
 ```
 
-Podemos ver que el método de aplicar una transformación, calcular intervalos 
-usando la normal y aplicar la transformación inversa para volver a la escala
-original genera intervalos de confianza atractivos, el problema con este 
+Podemos ver que el método de aplicar una transformación al estadístico original $\hat{\theta}$, calcular intervalos normales y aplicar la transformación inversa para volver a la escala
+original genera intervalos de confianza atractivos. El problema con este 
 método es que requiere que conozcamos la transformación adecuada para cada 
-parámetro. Por otra parte, podemos pensar en el método del percentil como un 
-algoritmo que incorpora la transformación de manera automática.
+parámetro. 
+
+Por otra parte, podemos pensar en el método del percentil como un 
+algoritmo que incorpora la transformación de manera automática, por lo que los intervalos percentiles arrojan directamente intervalos de confianza atractivos.
 
 <div class="caja>
-**Lema**. Supongamos que la transformación $\hat{\phi}=m(\hat{\theta})$ 
+**Lema.** Supongamos que la transformación $\hat{\phi}=m(\hat{\theta})$ 
 normaliza la distribución de $\hat{\theta}$ de manera perfecta, 
-$$\hat{\phi} \approx N(\phi, c^2)$$
-para alguna desviación estándar $c$. Entonces el intervalo de percentil basado
+$$\hat{\phi} \sim N(\phi, c^2)$$
+para alguna desviación estándar constante $c$. Entonces el intervalo de percentil basado
 en $\hat{\theta}$ es igual a 
 $$(m^{-1} (\hat{\phi}-z^{(1-\alpha)}c), m^{-1}(\hat{\phi}-z^{(\alpha)}c))$$
 </div>
@@ -953,16 +957,16 @@ $$(m^{-1} (\hat{\phi}-z^{(1-\alpha)}c), m^{-1}(\hat{\phi}-z^{(\alpha)}c))$$
 Existen otras alternativas al método del percentil y cubren otras fallas del 
 intervalo normal. Por ejemplo, hay ocasiones en que $\hat{\theta}$ tiene una
 distribución normal sesgada:
-$$\hat{\theta} \approx N(\theta + sesgo, \hat{se}^2)$$
+$$\hat{\theta} \sim N(\theta + sesgo, se^2(\hat{\theta}))$$
 
 en este caso no existe una transformación $m(\theta)$ que _arregle_ el intervalo.
 
-3. **Intervalos acelerados y corregidos por sesgo**. Esta es una versión mejorada
+**Intervalos acelerados y corregidos por sesgo**. Esta es una versión mejorada
 del intervalo de percentil, la denotamos $BC_{a}$ (bias-corrected and 
 accelerated).
 
-Usaremos un ejemplo de Effron y Tibshirani, los datos constan de los resultados 
-en dos pruebas espaciales de 26 niños con algún problema neurológico. Supongamos
+**Ejemplo:** Usaremos un ejemplo de Effron y Tibshirani: los datos constan de los resultados 
+en dos pruebas espaciales $(A, B)$ de 26 niños con algún problema neurológico. Supongamos
 que queremos calcular un intervalo de confianza de 90\% para $\theta=var(A)$.
 El estimador plugin es:
 $$\hat{\theta}=\sum_{i=1}^n(A_i-\bar{A})^2/n$$
@@ -980,24 +984,25 @@ sum((spatial$A - mean(spatial$A)) ^ 2) / nrow(spatial)
 sum((spatial$A - mean(spatial$A)) ^ 2) / (nrow(spatial) - 1)
 ```
 
-El método $BC_{a}$ corrige el sesgo de manera automática, lo cuál es una 
+El método $BC_{a}$ corrige el sesgo del estimador *plug-in* (y de cualquier otro estimador) de manera automática, lo cuál es una 
 de sus prinicipales ventajas comparado con el método del percentil.
 
 <div class="caja>
 Los extremos en los intervalos $BC_{a}$ están dados por percentiles de la
 distribución bootstrap, los percentiles usados dependen de dos números $\hat{a}$
 y $\hat{z}_0$, que se denominan la aceleración y la corrección del sesgo:
-$$BC_a : (\hat{\theta}_{inf}, \hat{\theta}_{sup})=(\hat{\theta}^*(\alpha_1), \hat{\theta}^*(\alpha_2))$$ 
+$$(\hat{\theta}_{\alpha}, \hat{\theta}_{1-\alpha})\approx(\hat{\theta}_B^*(\alpha_1), \hat{\theta}_B^*(\alpha_2))$$ 
 donde 
 $$\alpha_1= \Phi\bigg(\hat{z}_0 + \frac{\hat{z}_0 + z^{(\alpha)}}{1- \hat{a}(\hat{z}_0 + z^{(\alpha)})}\bigg)$$
 $$\alpha_2= \Phi\bigg(\hat{z}_0 + \frac{\hat{z}_0 + z^{(1-\alpha)}}{1- \hat{a}(\hat{z}_0 + z^{(1-\alpha)})}\bigg)$$
-y $\Phi$ es la función de distribución acumulada de la distribución normal estándar
+$\Phi$ es la función de distribución acumulada de la distribución normal estándar
 y $z^{\alpha}$ es el percentil $100 \cdot \alpha$ de una distribución normal
-estándar.
+estándar. 
 </div>
 
 Notemos que si $\hat{a}$ y $\hat{z}_0$ son cero entonces $\alpha_1=\alpha$ y 
 y $\alpha_2=1-\alpha$, obteniendo así los intervalos de percentiles.
+
 El valor de la corrección por sesgo $\hat{z}_0$ se obtiene de la 
 propoción de de replicaciones bootstrap menores a la estimación original 
 $\hat{\theta}$, 
@@ -1010,27 +1015,31 @@ unidades normales.
 
 Por su parte la aceleración $\hat{a}$ se refiere a la tasa de cambio del error 
 estándar de $\hat{\theta}$ respecto al verdadero valor del parámetro $\theta$. 
-La aproximación estándar usual $\hat{\theta} \approx N(\theta, se^2)$ supone que 
-el error estándar de $\hat{\theta}$ es el mismo para toda $\hat{\theta}$, esto 
-puede ser poco realista, en nuestro ejemplo, donde $\hat{\theta}$ es la varianza
-si los datos provienen de una normal $se(\hat{\theta})$ depende de $\theta$. 
+La aproximación normal estándar usual $\hat{\theta} \approx N(\theta, c^2)$ supone que 
+el error estándar de $\hat{\theta}$ es el mismo para toda $\hat{\theta}$. esto 
+puede ser poco realista, en nuestro ejemplo, donde $\hat{\theta}$ es la varianza de $A$,
+si los datos provienen de una normal entonces $se(\hat{\theta})$ depende de $\hat{\theta}$. 
+
 Una manera de calcular $\hat{a}$ es
 
 $$\hat{a}=\frac{\sum_{i=1}^n (\hat{\theta}(\cdot) - \hat{\theta}(i))^3}{6\{\sum_{i=1}^n (\hat{\theta}(\cdot) - \hat{\theta}(i))^2\}^{3/2}}$$
 
-Los intervalos $BC_{a}$ tienen 2 ventajas teóricas: 1) Respetan transformaciones, 
-esto nos dice que los extremos del intervalo se transforman de manera adecuada 
-si cambiamos el parámetro de interés por una función del mismo, 2) su precisión, 
-los intervalos $BC_{a}$ tienen precisión de segundo orden, esto es, los errores
-de cobertura se van a cero a una tasa de 1/n (los intervalos estándar y de 
+Los intervalos $BC_{a}$ tienen 2 ventajas teóricas: 
+
+1) Respetan transformaciones: esto nos dice que los extremos del intervalo se transforman de manera adecuada si cambiamos el parámetro de interés por una función del mismo. 
+
+2) Su precisión: los intervalos $BC_{a}$ tienen precisión de segundo orden, esto es, los errores
+de cobertura se van a cero a una tasa de $1/n$ (los intervalos estándar y de 
 percentiles tienen precisión de primer orden).
 
-Los intervalos $BC_{a}$ están implementados en el paquete boot (boot.ci) y 
-en el paquete bootstrap (bcanon). La desventaja de los intervalos $BC_{a}$ es 
-que requieron intenso cómputo estadístico, de acuerdo a Effron y Tibshirani al
+Los intervalos $BC_{a}$ están implementados en el paquete `boot` (`boot.ci`) y 
+en el paquete `bootstrap` (`bcanon`). 
+
+La desventaja de los intervalos $BC_{a}$ es 
+que requieron intenso cómputo estadístico; de acuerdo a Effron y Tibshirani al
 menos $B= 1000$ replicaciones son necesairas para reducir el error de muestreo. 
-Ante esto surgen los intervalos ABC (approximate bootstrap confidence intervals), 
-que es un método para aproximar $BC_{a}$ analíticamente (usando expansiones de 
+Ante esto surgen los intervalos ABC (**approximate bootstrap confidence intervals**), 
+que es un método para aproximar $BC_{a}$ analíticamente (usando expansiones en 
 Taylor).
 
 Usando la implementación del paquete bootstrap:
@@ -1050,33 +1059,33 @@ ggplot(data_frame(b_var)) +
   geom_abline()
 ```
 
-**Ejercicio:** Comapara el intervalo anterior con los intervalos
-normal y de percentiles.
+**Ejercicio:** Comapara los intervalos del ejemplo anterior con los intervalos
+normales y de percentiles.
 
 Otros intervalos basados en bootstrap incluyen los intervalos pivotales y los 
 intervalos bootstrap-t. Sin embargo, BC y ABC son mejores alternativas.
 
-4. **Intervalos pivotales**. Sea $\theta=s(P)$ y $\hat{\theta}=s(P_n)$ definimos
+4. **Intervalos pivotales**. Sean $\theta=t(P)$ y $\hat{\theta}=t(P_n)$. Definimos
 el pivote $R=\hat{\theta}-\theta$. Sea $H(r)$ la función de distribución 
 acumulada del pivote:
 $$H(r) = P(R<r)$$
 
-Definimos $C_n^*=(a,b)$ donde:
+Definimos el intervalo pivotal $C_n^*=(a,b)$ donde:
 $$a=\hat{\theta}-H^{-1}(1-\alpha), b=\hat{\theta}-H^{-1}(\alpha)$$
 $C_n^*$ es un intervalo de confianza de $1-2\alpha$ para $\theta$; sin
-embargo, $a$ y $b$ dependen de la distribución desconocida $H$, la podemos
-estimar usando bootstrap:
+embargo, $a$ y $b$ dependen de la distribución desconocida $H$. Si estimamos 
+$H(r)$ utilizando bootstrap:
 $$\hat{H}(r)=\frac{1}{B}\sum_{b=1}^B I(R^*_b \le r)$$
- y obtenemos
-$$C_n=(2\hat{\theta} - \hat{\theta}^*_{1-\alpha}, 2\hat{\theta} + \hat{\theta}^*_{1-\alpha})$$
+obtenemos el estimador por intervalos:
+$$\hat{C}_n^*=(2\hat{\theta} - \hat{\theta}_B^*(1-\alpha), 2\hat{\theta} + \hat{\theta}_B^*(\alpha))$$
 
 
 
-##### Referencias de bootstrap
+##### Referencias
 * An introduction to the bootstrap, B. Effron, R. J. Tibshirani. Tiene asociado
 l paquete _bootstrap_ de R.
 * All of statistics, L. Wasserman.  
 * Bootstrap Methods and their applications, A. C. Davison, D.V. Hinkley. Tiene 
 asociado el paquete _boot_ de R.
 * Practical Tools for Designing and Weighting Survey Samples, R. Valliant, 
-J.A. Dever, F. Kreuter.-->
+J.A. Dever, F. Kreuter.
