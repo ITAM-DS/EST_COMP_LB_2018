@@ -1,0 +1,829 @@
+---
+title: "Repaso de probabilidad"
+author: "León Berdichevsky Acosta"
+date: "30 de agosto de 2018"
+output: html_document
+
+---
+
+
+>"Probabilidad es el lenguaje matemático para cuantificar incertidumbre."
+> -Wasserman
+
+En estas notas abordamos los siguientes temas:
+
+1. Conceptos de probabilidad.  
+2. Interpretación frecuentista de la probabilidad.
+3. Probabilidad condicional, independencia y la Regla de Bayes.  
+4. Variables aleatorias.
+
+<!-- Hadley:
+"Probabilidad es la maquinaria matemática necesaria para responder preguntas de
+eventos inciertos"
+Kruschke:
+"Probabilidad es simplemente una manera de asignar números a un conjunto de 
+posibilidades mutuamente excluyentes."
+
+La teoría de probabilidades tiene como problema
+general describir mediante un modelo matemático cada tipo de fenómeno aleatorio,
+mientras que la inferencia estadística tiene planteado el problema inverso, es decir, a
+partir del conocimiento de una parte del fenómeno pretende establecer sus propiedades,
+para lo cual forzosamente debe utilizar algún modelo probabilístico que describa
+el fenómeno. Es esta dependencia de la estadística con la teoría de probabilidad lo que justifica profundizar el estudio de esta ultima.
+
+-->
+
+```{r, echo = FALSE, message=FALSE, error=TRUE}
+knitr::opts_chunk$set(
+    comment = "#>",
+    collapse = TRUE
+)
+comma <- function(x) format(x, digits = 2, big.mark = ",")
+options(digits=2)
+
+library(tidyverse)
+library(magrittr)
+theme_set(theme_minimal())
+```
+
+## Conceptos de Probabilidad
+
+### Espacio de resultados y eventos
+
+<div class="caja">
+El **espacio de resultados** $\Omega$ es el conjunto de posibles resultados de un
+experimento aleatorio. A los puntos $\omega \in \Omega$ se les conoce como 
+resultados muestrales, realizaciones o elementos.
+</div>
+
+
+**Ejemplo:** Si lanzamos una moneda dos veces entonces el espacio de resultados es:
+
+$$\Omega = \{AA, AS, SA, SS \}$$
+
+<div class="caja">
+Un **evento** es un subconjunto del espacio de resultados; los eventos usualmente se 
+denotan por letras mayúsculas.
+</div>
+
+**Ejemplo:** El evento que el primer lanzamiento resulte águila es
+
+$$A=\{AA, AS\} \subset \Omega $$
+
+
+### Eventos equiprobables
+
+La probabilidad se puede ver como una extensión de la idea de **proporción**, o cociente
+de una parte con respecto a un todo. 
+
+**Ejemplo:** Si en la carrera de matemáticas del ITAM 
+hay 300 estudiantes hombres y 700 mujeres, la proporción de hombres es:
+$$\frac{300}{700+300}=0.3$$
+Ahora, supongamos que elegimos un estudiante al azar, la probabilidad de elegir
+una mujer es $0.7$.
+
+En el ejemplo hay un supuesto implícito en elegir al azar (o aleatoriamente):
+en este caso estamos suponiendo que todos los estudiantes tienen la misma 
+probabilidad de ser elegidos, que nos lleva al siguiente concepto: 
+
+<div class="caja">
+**Eventos equiprobables**. Si todos los elementos en el espacio de resultados 
+tienen la misma oportunidad de ser elegidos entonces la probabilidad del evento A 
+es el número de elementos en A dividido entre el número total de posibles 
+resultados o elementos en $\Omega$:
+</div>
+
+$$P(A)=\frac{\#(A)}{\#(\Omega)}$$
+
+Esto signific que si conocemos el espacio de resultados $\Omega$ lo único que tenemos que hacer para calcular probabilidades es contar.
+
+**Ejemplo:** La probabilidad de obtener $AA$ si lanzamos una moneda dos veces
+es $1/4 = 0.25$, y la probabilidad del evento que la primer lanzamiento resulte 
+águila es $2/4 = 0.5$.
+
+**Ejercicio 1:** Lanzamos un dado y anotamos el número de la cara
+superior, después lanzamos otro dado y anotamos el número de la cara superior:
+
+* ¿Cuál es el espacio de resultados?
+
+* ¿Cuál es la probabilidad de que la suma de los números sea 5?  
+
+* ¿Cuál es la probabilidad de que el segundo número sea mayor que el primero?  
+
+* Repite las preguntas anteriores cuando lanzas 2 dados con $n$ caras ($n \ge 4$).
+
+**Ejemplo: combinaciones.** Un comité de 5 personas será seleccionado de un grupo de 6 hombres y 9 mujeres. Si la selección es aleatoria, ¿cuál es la probabilidad del evento *E* que el comité este
+conformado por 3 hombres y 2 mujeres?
+
+Hay $\dbinom{15}{5}$ posibles comités (coeficiente binomial o combinaciones de 15 en 5). Cada comité tiene la misma posibilidad de ser seleccionado. Por otra parte, hay $\dbinom{6}{3} \dbinom{9}{2}$ posibles comités 
+que incluyen 3 hombres y 2 mujeres. Por
+lo tanto, la probabilidad que buscamos es: 
+$$P(E)=\frac{\dbinom{6}{3} \dbinom{9}{2}}{\dbinom{15}{5}} $$
+
+y la función para calcular combinaciones en R es `choose(n, r)`:
+
+```{r}
+choose(6, 3) * choose(9, 2) / choose(15, 5)
+```
+
+## Interpretación frecuentista de probabilidad
+
+Ya tenemos una interpretación intuitiva de probabilidad pero nos deja abierta
+la pregunta de como interpretar probabilidades en aplicaciones. 
+
+En el curso veremos dos interpretaciones de probabilidad: 
+
+1. La **interpretación frecuentista**, en la cuál las probabilidades se entienden como una aproximación
+matemática de frecuencias relativas cuando la frecuencia total tiende a infinito. 
+
+2. La **interpretación subjetiva**, en la que un enunciado de probabilidad 
+expresa la opinión de un individuo respecto a la certeza de que ocurra un evento.
+
+Por ahora nos concentramos en la interpretación frecuentista. Una **frecuencia relativa** es una proporción que mide que tan seguido, o frecuente, 
+ocurre una u otra cosa en una sucesión de observaciones. Pensemos en un
+experimento que se pueda repetir (por ejemplo, lanzar una moneda, lanzar un 
+dado, el nacimiento de un bebé). Llamaremos **ensayo** a una repetición del 
+experimento. Ahora, sea $\alpha$ un posible resultado de un ensayo 
+(obtener sol, obtener un 6, el bebé es niña). Si $\alpha$ ocurre $m$ veces en
+$n$ ensayos, entonces la frecuencia relativa de $\alpha$ en $n$ ensayos es $m/n$.
+
+**Ejemplo:** Supongamos que lanzamos una moneda 10 veces y obtenemos los siguientes resultados:
+```{r}
+set.seed(2071)
+lanzamientos_10 <- sample(c("A", "S"), 10, replace = TRUE)
+lanzamientos_10
+```
+
+Podemos calcular la secuencia de frecuencias relativas de obtener águila:
+
+```{r}
+cumsum(lanzamientos_10 == "A") # suma acumulada de águilas
+cumsum(lanzamientos_10 == "A") / 1:10
+```
+
+Una regla general, es que las frecuencias relativas basadas en un número 
+mayor de observaciones son fluctuan menos comparado con las frecuencias
+relativas basadas en pocas observaciones. Este fenómeno se conoce como la **ley empírica de los promedios**.
+
+**Ejemplo:** Consideremos la serie de frecuencias relativas de 100 lanzamientos de una moneda:
+
+```{r, fig.width=8.2, fig.height=3.8}
+set.seed(204873)
+n <- 1000
+data_frame(num_lanzamiento = 1:n, lanzamiento = sample(c("A", "S"), n, replace = TRUE)) %>% 
+    mutate(frec_rel = cummean(lanzamiento == "A")) %>%
+    ggplot(aes(x = num_lanzamiento, y = frec_rel)) +
+        geom_hline(yintercept = 0.5, color = "red", alpha = 0.5) +
+        geom_line(color = "darkgray") +
+        geom_point(size = 1.0) +
+        labs(y = "frecuencia relativa", title = "1000 volados", x = "lanzamiento")
+```
+
+Ahora consideremos las frecuencias relativas para 3 series de 1000 lanzamientos.
+
+```{r, fig.width=8.2, fig.height=3.8}
+lanzar <- function(n = 1000){
+    data_frame(num_lanzamiento = 1:n, lanzamiento = sample(c("A", "S"), n, replace = TRUE)) %>% 
+        mutate(frec_rel = cummean(lanzamiento == "A"))
+  }
+head(lanzar())
+
+set.seed(31287931)
+# usamos la función map_df del paquete purrr
+map_df(1:3, ~lanzar(), .id = "serie") %>% 
+    ggplot(aes(x = log(num_lanzamiento), y = frec_rel, color = as.character(serie))) +
+        geom_hline(yintercept = 0.5, color = "darkgray") + 
+        geom_line() +
+        scale_x_continuous("lanzamiento", labels = exp, 
+            breaks = log(sapply(0:10, function(i) 2 ^ i))) +
+        labs(color = "serie", y = "frecuencia relativa", title = "1000 volados")
+```
+
+<div class="caja">
+En la **interpretación frecuentista**, la probabilidad de un evento $A$ es la 
+estimación de la frecuencia relativa de $A$ cuando el número de ensayos tiende
+a infinito. Si denotemos la proporción de veces que ocurre $A$ en $n$ ensayos por 
+$P_n(A)$, se espera que $P_n(A)$ sea cercana a la probabilidad $P(A)$ si $n$ 
+es _grande_:
+$$P_n(A) \approx P(A), \quad n\gg 1$$
+</div>
+
+Esta idea se precisará más adelante cuando estudiemos la 
+**ley de los grandes números**.
+
+Veamos un ejemplo de probabilidad como frecuencia relativa; el objetivo es 
+entender cómo la interpretación frecuentista nos da el nivel de detalle correcto 
+cuando suponemos resultados equiprobables.
+
+**Ejemplo: Lanzamiento de dos monedas.** Supongamos que lanzamos dos monedas de manera simultánea. ¿Cuál es la probabilidad de que las dos monedas sean águila?
+
+La respuesta corrcta no es algo que se pueda juzgar usando únicamente
+matemáticas, sino que depende de los supuestos para calcular frecuencias relativas en ensayos. 
+
+1. A pesar de que las monedas son similares supongamos que se pueden distinguir, 
+llamémoslas moneda 1 y moneda 2. Ahora tenemos cuatro posibles resultados:
+AA, AS, SA, SS, (la primer letra corresponde a la cara observada en la 
+moneda 1 y la segunda en la moneda 2). 
+
+2. Si estos 4 resultados son igualmente probables entonces el evento AA tiene posibilidad de 1/4.
+
+En este caso, las frecuencias relativas para 10,000 repeticiones del experimento es:
+
+```{r}
+set.seed(31287931)
+n <- 10000
+moneda_1 <- sample(c("A", "S"), n, replace = TRUE)
+moneda_2 <- sample(c("A", "S"), n, replace = TRUE)
+sum(moneda_1 == moneda_2 & moneda_1 =="A") / n
+```
+
+Y la probabilidad tenderá a la respuesta correcta del punto 2. cuando el número de experimentos tienda a infinito.
+
+Más aún, hay ejemplos donde el supusto de equiprobabilidad no es adecuado (ej. cuando las monedas no son "justas", o el sexo de un bebé recién nacido, etc.).
+
+### Simulación para el cálculo de probabilidades
+En el ejemplo anterior vimos que puede ser sencillo usar simulación para aproximar las
+probabilidades, pues usando la interpretación de frecuencia relativa simplemente
+hace falta simular el experimento y contar los casos favorables entre el
+total de casos. Veamos un ejemplo más para familiarizarnos con este uso de 
+simulación.
+
+**Ejemplo: La ruina del jugador.** 
+
+* Un jugador tiene $100, y va a apostar en un juego donde
+la probabilidad de ganar es p = 0.47 (e.g. una ruleta 18/38), si gana recibe el 
+doble de lo que arriesgó, si no gana pierde todo lo que apostó.
+
+* Cada vez que juega puede apostar cualquier cantidad siempre y cuando sea menor 
+o igual al dinero que tiene en ese momento. 
+
+* El jugador dejará de jugar cuando su capital sea $0 o cuando gane $200.
+
+* El jugador busca una estrategia que le ayude a aumentar su probabilidad de 
+ganar y te pregunta: 
+
+    i) ¿Cuál es la probabilidad de ganar si apuesto en incrementos de $5 cada vez que apuesto? 
+
+    ii) ¿Cuál es la probabilidad si apuesto todo en una jugada?
+
+
+```{r, cache=TRUE}
+apostar <- function(dinero = 100, apuesta = 5, tope = 200, p = 0.47){
+    while(0 < dinero & dinero < tope){
+        if(runif(1) < p){
+            dinero <- dinero + apuesta
+        } 
+        else{
+            dinero <- dinero - apuesta
+        }
+    }
+    dinero > 0
+}
+n_juegos <- 5000
+juegos <- rerun(n_juegos, apostar()) %>% flatten_dbl()
+mean(juegos)
+
+juegos <- rerun(n_juegos, apostar(apuesta = 100)) %>% flatten_dbl()
+mean(juegos)
+```
+
+La solución analítica la pueden leer en este documento de [caminatas aleatorias](http://web.mit.edu/neboat/Public/6.042/randomwalks.pdf):
+```{r}
+p = 0.47
+1 - (1 - (p / (1 - p)) ^ (100 / 5)) / (1 - (p / (1 - p)) ^ (200 / 5)) # apostando de 5 en 5
+1 - (1 - (p / (1 - p)) ^ (100 / 100)) / (1 - (p / (1 - p)) ^ (200 / 100)) # apostando de 100 en 100
+```
+
+**Ejercicio 2: Urna.** 10 personas (con nombres distintos) escriben sus nombres y los ponen en una urna, después seleccionan un nombre (al azar) cada uno. 
+
+* Sea A el evento en el que ninguna persona selecciona su nombre, ¿Cuál es la
+probabilidad del evento A?  
+
+* Supongamos que hay 3 personas con el mismo nombre, ¿Cómo calcularías la
+probabilidad del evento A en este nuevo experimento?
+
+
+****
+
+
+### Probabilidad: definición matemática
+
+Desde un punto de vista puramente matemático, la probabilidad se define como
+una función de eventos. Los eventos se representan como conjuntos, y suponemos 
+que la función de probabilidad satisface las reglas básicas de proporción. Antes
+de definir estas reglas consideremos la representación de los eventos como 
+subconjuntos de un espacio de resultados.
+
+Supongamos que tenemos un espacio de resultados $\Omega$, y que todos los 
+eventos de interés están representados como subconjuntos de $\Omega$. Podemos
+pensar en $\Omega$ como una representación de todas las situaciones que pueden
+ocurrir, no suponemos que es finito (ni discreto), ni que los eventos son igualmente probables.
+
+Las reglas de la probabilidad involucran relaciones lógicas entre eventos; estas 
+se traducen a relaciones de conjuntos. Por ejemplo, si C es el evento que ocurre
+si sucede A o si sucede B, entonces el conjunto de maneras en las que ocurre C
+es la unión del conjunto de maneras en que ocurre A y el conjunto de maneras en 
+que ocurre B. Veamos como se traduce de eventos a conjuntos:
+
+Lenguaje de eventos | Lenguaje de conjuntos | Notación de conjuntos
+--------------------|-----------------------|----------------------
+Espacio de resultados| conjunto universal   | $\Omega$
+evento              | subconjunto de $\Omega$| $A,B,C,...$
+evento imposible    | conjunto vacío        | $\emptyset$
+no A, opuesto de A  |complemento de A       | $A^c$
+A o B               |unión de A y B         | $A\cup B$
+tanto A como B      | intersección de A y B | $AB,A\cap B$ 
+A y B mutuamente excluyentes |A y B disjuntos | $AB=\emptyset$
+si A entonces B     | A es subconjunto de B | $A\subset B$
+
+
+#### Particiones y axiomas de probabilidad
+<div class="caja">
+Decimos que un conjunto de $n$ eventos (subconjuntos) $B_1,...,B_n$ es una **partición** del evento 
+$B$ si $B=B_1 \cup B_2 \cup \cdot\cdot\cdot \cup B_n$ y los eventos 
+$B_1,...,B_n$ son **mutuamente excluyentes**. 
+</div>
+
+<div class="caja">
+Una función $P$ es una **función de probabilidad** si satisface las siguientes condiciones (axiomas):
+
+1. Para cualquier evento $B$, el valor de probabilidad debe ser no-negativo: 
+$$P(B) \geq 0$$ 
+2. La suma de las probabilidades a través de todos los posibles elementos en el 
+espacio de resultados debe ser 1 (esto es, por lo menos uno de los elementos del espacio de 
+resultados debe ocurrir): 
+$$P(\Omega) = 1$$
+3. Si $B_1,...,B_n$ es una partición del evento $B$ entonces, la probabilidad 
+de que ocurra B es la suma de las probabilidades individuales:
+$$P(B)=P(B_1)+P(B_2) + \cdot\cdot\cdot +P(B_n)$$
+</div>
+
+##### Propiedades de la función de probabilidad:
+* $P(A^c) = 1 - P(A)$    
+* $P(\emptyset)=0$  
+* Si $A \subset B$ entonces $P(A) \le P(B)$  
+* $0\le P(A) \le 1$
+* La regla general de la suma: $P(A \cup B) = P(A) + P(B) - P(A \cap B)$
+
+#### Distribuciones de probabilidad
+Una **distribución de probabilidad** es simplemente una lista de todos los elementos del espacio de resultados y sus probabilidades correspondientes (en el caso discreto): 
+
+resultado $\omega$          | a    | b | c | d | e| $\cdot\cdot\cdot$  
+----------------------------|------|---|---|---|--|---------------- 
+**probabilidad $P(\omega)$**|$P(a)$|$P(b)$|$P(c)$|$P(d)$|$P(e)$|$\cdot\cdot\cdot$
+
+
+<!--Podemos pensar en el término distribución como una masa distribuida sobre un 
+área o volumen $\Omega$, y $P(A)$ representa la proporción de esa masa en el 
+subconjunto $A$.--> 
+
+<!-- Con esta imagen en mente, las reglas de probabilidad son 
+intuitivas. Pensemos que B puede o no ocurrir, P(B) es una medida de que 
+tan posible es que ocurra.
+
+Remark técnico: si omega es infinito se asume que hay una regla de suma 
+similar para particiones de un evento en una sucesión infinita -->
+
+##### Distribución empírica
+
+<div class="caja">
+Sea $(x_1,x_2,...,x_n)$ una lista de $n$ números; podemos pensar que $x_i$ es la 
+i-ésima medición de algo en una serie de mediciones. La **distribución empírica** de
+la lista de $n$ números es la distribución en la línea $(-\infty, \infty)$ 
+definida como 
+$$P_n(a,b)=\#\{i: 1 \le i \le n, a < x_i < b\}/n$$
+</div>
+
+Esto es, $P_n(a,b)$ es la proporción de los $n$ números en la lista que se 
+ubican en el intervalo $(a,b)$. 
+
+Para entender la interpretación probabilística, 
+imaginemos $n$ boletos en una caja, cada boleto tiene escrito el número $x_i$,
+después elegimos un boleto al azar y $P_n(a,b)$ es la probabilidad de que 
+el número escrito en el boleto que elegimos caiga en el intervalo $(a,b)$. 
+Entonces, la distribución empírica de una lista es la distribución de un número 
+elegido de manera aleatoria de la lista.
+
+Podemos mostrar la distribución empírica de una lista de datos mediante un
+histograma.
+
+**Ejemplo:** Veamos un caso donde el valor de $x_i$ es discreto (y finito). Considere una muestra aleatoria de 100 lanzamientos de un dado: 
+
+```{r}
+dado <- read_delim("data/dado.csv", " ", escape_double = FALSE, trim_ws = TRUE)
+prop.table(table(dado$observado))
+```
+
+En este caso la lista es (1, 2, 3, 4, 5 o 6) y la distribución empírica de la lista es (0.13, 0.19, 0.10, 0.17, 0.14, 0.27), por lo que ésta se describe con una gráfica de barras:
+
+```{r, fig.height=3, fig.width=3.5}
+ggplot(dado, aes(x = observado)) + 
+    geom_bar(aes(y = ..prop..)) +
+    labs(y = "")
+```
+
+**Ejemplo:** Veamos un caso donde el valor de $x_i$ es continuo. Inspeccionaremos la distribución empírica de la variable ozono en la base de datos `airquality`:
+
+```{r, fig.height=3, fig.width=5}
+data(airquality)
+glimpse(airquality)
+```
+
+¿Cómo calculamos la probabilidad empírica de $x \in (0, 20)$?
+
+```{r}
+ozone_1 <- airquality$Ozone[!(is.na(airquality$Ozone))]
+n <- length(ozone_1)
+n # calculamos n (tamaño de muestra)
+ozone_ab <- ozone_1[0 < ozone_1 & ozone_1 < 20]
+ozone_ab
+n_ab <- length(ozone_ab)  # contamos cuantas observaciones pertenecen al evento (0, 20)
+n_ab/n
+```
+
+Y podemos graficar el histograma del ozono
+
+```{r, fig.height=3, fig.width=5}
+ggplot(airquality, aes(x = Ozone)) +
+  geom_histogram(binwidth = 10, aes(y = ..density..)) + 
+  geom_density() +
+    labs(y = "")
+```
+
+Un histograma aproxima la forma general de la distribución empírica.
+
+****
+
+## Probabilidad condicional e independencia
+
+Comenzaremos ilustrando la idea de probabilidad condicional mediante un ejemplo:
+
+**Ejemplo: Lanzamiento consecutivo de una moneda.** Supongamos que lanzamos una moneda tres veces. Si apostamos que saldrán 2 o más
+águilas (evento $A$), tenemos mayor oportunidad de ganar si el primer lanzamiento resulta en 
+águila en contraste con que el primer lanzamiento resulte en sol. Para ser más
+exactos, supongamos que las 8 posibles combinaciones de los resultados son
+igualmente probables (equiprobables):
+
+```{r}
+volado <- c("A", "S") 
+volados <- volado %>% 
+    crossing(volado) %>% 
+    crossing(volado)
+volados
+```
+
+Entonces, la probabilidad no condicional del evento $A$: que se observen al 
+menos dos águilas es $4/8 = 0.5$. 
+
+Ahora, la probabilidad del evento $A$ dado el envento $B$: que el primer lanzamiento sea águila, se calcula a partir del siguiente espacio de resultados:
+
+```{r}
+volados %>% 
+    filter(`.` == "A")
+```
+
+El evento $A$ ocurre si se observa al menos un águila en los últimos dos 
+lanzamientos, esto tiene una probabilidad de $3/4$. Decimos que la 
+probabilidad condicional de $A$ (que se observen al menos dos
+águilas) condicional a (o dado) $B$ (que el primer lanzamiento haya resultado en águila)
+es $3/4$ y se denota: 
+$$P(A \vert B) = 3/4$$
+Notemos que los 3 eventos que resultan en que se gane la apuesta, condicional
+a que se observó un águila en el primer volado, es la intersección de los
+eventos $A$ y $B$. 
+
+### Probabilidad Condicional como Proporción
+<div class="caja">
+Para un conjunto finito $\Omega$ de resultados igualmente probables, y eventos
+$A$, $B$ tales que $P(B) > 0$, la **probabilidad condicional** de $A$ dado
+$B$ es 
+$$P(A\vert B)=\frac{\#(A\cap B)}{\#B}$$
+la proporción de los resultados en $B$ que también están en $A$.
+</div>
+
+**Ejercicio 3:** Una urna contiene 10 sobres: 4 negros y 6 blancos,
+Adentro de cada sobre hay un boleto con una marca de ganar o perder, el número 
+de boletos ganadores y perdedores es como sigue:
+
+sobre  ganar   perder
+-----  ------- ------
+blanco  2       4
+negro   2       2
+
+Supongamos que se extrajo un sobre negro pero aún no se abre: 
+
+* ¿Cuál es la probabilidad de ganar condicional a que se extrajo un sobre negro?  
+* ¿Cómo se compara con la probabilidad no condicional de ganar?
+
+
+**Ejercicio 4:** En el juego de bridge, se dividen las 52 cartas 
+en 4 jugadores -llamados Este, Oeste, Norte y Sur,  
+
+* ¿cuál es la probabilidad de que Este tenga 3 espadas?  
+
+* Si Norte y Sur tienen un total de 8 espadas, ¿cuál es la probabilidad de que 
+Este tenga 3 espadas de las 5 restantes?
+
+### Interpretación frecuentista de la probabilidad condicional
+Este concepto se ilustra en el ejercicio anterior, si $P(A) \approx P_n(A)$ 
+(la frecuencia relativa de A) conforme el número de ensayos $n$ aumenta, 
+entonces $P(A\vert B)$ se aproxima a la frecuencia relativa de ensayos que producen 
+$A$ dentro del conjunto de ensayos en los que ocurre $B$:
+$$P(A\vert B) = \frac{P(A \cap B)}{P(B)}$$
+
+
+**Ejemplo: Áreas relativas.** Supongamos que tenemos un rectángulo principal ($R$) que contiene a un círculo ($B$) y a un rectángulo ($A$) más chico y que estos últimos se intersectan en su interior. Supongamos que la probabilidad de todo punto en $R$ es la misma. Supongamos ahora que 
+la ubicación del punto se revela en 2 etapas: 1) Primero se indica si el punto está o no en el círculo, 2) Posteriormente se indica si el punto se encuentra en el rectángulo interior. Antes de obtener información acerca de si el punto se encuentra ene el círculo,  
+¿Cuál es la probabilidad de que el punto esté en el rectángulo interior? 
+$$P(A) = \frac{Área(A)}{Área(R)}$$
+Ahora, si sabemos que el punto esta en el círculo, ¿cuál es la probabilidad
+de que el punto esté en el interior del rectángulo interior?
+$$P(A\vert B) = \frac{Área(A \cap B)}{Área(B)}$$
+
+Esto implica que áreas iguales corresponden a igual probabilidad dentro de $B$.
+
+#### Regla de la multiplicación
+En los ejemplos anteriores calculamos la probabilidad condicional a partir de 
+probabilidades no condicionales ($P(B), P(A\cap B)$); sin embargo, en las 
+aplicaciones es común tener eventos tales que la probabilidad condicional 
+$P(A\vert B)$ y la probabilidad $P(B)$ son más fáciles de conocer que la probabilidad
+$P(A \cap B)$. 
+
+<div class="caja">
+**Regla de la multiplicación**: $$P(A \cap B) = P(A\vert B)P(B)$$
+</div>
+
+La regla de la multiplicación es muy natural en escenarios donde un evento $A$
+esta determinado por un resultado que ocurre en etapas, y $B$ es un evento que 
+depende únicamente de la primera etapa.
+
+**Ejercicio 5: Seleccionando una camada, después un cachorro.**
+Supongamos que tenemos 2 camadas de labradores, en la primer camada hay 2 
+cachorros color negro y 2 chocolate, en la segunda camada hay 1 cachorro color negro 
+y 2 miel. El experimento es como sigue: lanzo una moneda justa, si sale sol
+elijo un perro al azar de la camada uno y si el resultado es águila elijo 
+un perro al azar de la camada dos.  
+
+* ¿Cuál es la probabilidad de que elija un perro color chocolate? 
+
+Sea A el evento: elijo un perro miel, y B elijo la camada 1. Entonces para 
+calcular $P(A) = P(A \cap B)$ usamos la regla de la multiplicación.  
+Notemos primero que $P(B) = 1/2 = P(B^c)$  
+Y $P(A\vert B)=1/2$
+Por tanto $P(A) = 1/4$.
+
+* ¿Cuál es la probabilidad de que elija un cachorro color negro?
+
+#### Promedio de probabilidades condicionales
+El ejercicio anterior ilustra la regla de del promedio de probabilidades
+condicionales: para cualquier par de eventos $A$ y $B$, la probabilidad total 
+$P(A)$ es el promedio de 2 probabilidades condicionales $P(A\vert B)$ y $P(A\vert B^c)$, 
+donde los pesos son $P(B)$ y $P(B^c)$:
+$$P(A) = P(A\vert B)P(B) + P(A\vert B^c)P(B^c)$$
+
+<div class="caja">
+El evento $B$ define una partición del espacio de resultados $\Omega$ en 2
+eventos $B$ y $B^c$, podemos extender la fórmula a un caso más general: sean
+$B_1, B_2, ..., B_n$ una partición del espacio de resultados $\Omega$, para 
+cualquier evento $A$, los eventos $A\cap B_1,...,A\cap B_n$ forman una partición
+de $A$, por lo tanto
+$$P(A)=P(A\cap B_1)+\cdot\cdot\cdot+P(A\cap B_n)$$
+y si aplicamos la regla de la  multiplicación a cada término,
+$$P(A) = P(A\vert B_1)P(B_1)+\cdot\cdot\cdot+P(A\vert B_n)P(B_n)$$
+</div>
+
+**Ejemplo: muestreo con/sin reemplazo.**
+Supongamos que seleccionamos (al azar) dos cartas de una baraja, ¿cuál es la 
+probabilidad de que la segunda carta sea negra?  
+Sean $N$ y $R$ los eventos, que la primera carta sea negra y que la primera
+carta sea roja, y sea $A$ el evento que la segunda carta sea negra, entonces
+$$P(A) = P(A\vert N)P(N) + P(A\vert R) P(R)$$
+
+**Ejercicio 6: Chabelo (Monty Hall).**
+Supongamos que estamos jugando las catafixias de Chabelo, en este juego hay
+3 _catafixias_: 2 de ellas están vacías y una tiene un premio,  
+
+1. El juego comienza cuando escoges una catafixia.  
+2. A continuación Chabelo abre una catafixia vacía de las dos catafixias restantes. 
+3. Tu eliges si te mantienes con tu catafixia o cambias a la otra que 
+continúa cerrada.
+4. Chabelo abre tu segunda elección de catafixia y se revela si ganaste.
+
+¿Cuál es la probabilidad de que ganes si cambias de catafixia?
+
+### Regla de Bayes
+Las reglas de probabilidad condicional que describimos en la sección anterior
+son la base de la regla de Bayes: 
+
+<div class = "caja">
+**Regla de Bayes**. Sea $B_1,...,B_n$ una partición del espacio de resultados $\Omega$. Entonces, para cualquier evento $A$ se tiene que:
+$$P(A)P(B_i\vert A) = P(A\vert B_i)P(B_i) \quad \forall \quad i=1,...,n$$
+
+o
+
+$$P(B_i\vert A) = \frac{P(A\vert B_i)P(B_i)}{P(A\vert B_1)P(B_1)+ \cdot\cdot\cdot + 
+P(A\vert B_n)P(B_n)}$$
+</div>
+
+
+**Ejercicio 7: 3 camadas.** Supongamos que tenemos 3 camadas de labradores en un criadero:
+
+Camada | negro | miel
+-------|-------|-----
+1      | 1     | 1
+2      | 2     | 1
+3      | 3     | 1
+
+Para vender un cachorro elijo una camada de manera aleatoria, y después elijo un 
+cachorro de manera aleatoria de la camada seleccionada y lo entrego al nuevo 
+dueño. Sabiendo la composición de las camadas antes de extraer el cachorro, 
+ofrezco un descuento si adivinan de que camada provino.  
+
+Si te entrego un cachorro negro ¿Qué camada seleccionarías y cuál es la 
+probabilidad de elegir la correcta?
+
+**Ejercicio 8.** [La intuición es engañosa](http://www.amazon.com/The-Drunkards-Walk-Randomness-Rules/dp/0307275175): En estudios en Alemania y EUA, investigadores
+le pidieron a médicos que estimaran la probabilidad de que una mujer 
+asintomática entre los 40 y 50 años tuviera cáncer de mama si su mamograma 
+era positivo. Se les explicó que el 7\% de los mamogramas indican cáncer cuando
+no lo hay (falsos positivos). Adicional mente, se le explicó a los médicos que 
+la incidencia de cáncer de mama en ese grupo de edad es 0.8\% y la tasa de 
+falsos negativos de 10\%. En Alemania, un tercio de los médicos determinaron
+que la probabilidad era cercana al 90\% y la mediana de las estimaciones fue
+70\%. En EUA 95 de 100 médicos estimaron que la probabilidad rondaba el 75\%.
+¿Cómo determinas la probabilidad de que una mujer con mamograma positivo tenga
+cáncer?
+
+##### Observaciones
+ 
+1. $P(\cdot\vert B)$ satisface las reglas de probabilidad para una $B$ fija. En general, $P(A\vert \cdot)$ no satisface las reglas de probabilidad para una $A$ fija.
+2. En general $P(A\vert B) \ne P(B\vert A)$.
+
+### Independencia
+Dos eventos, $A$, $B$ son **independientes** si y solo si la probabilidad de que ocurra 
+$B$ no depende de si ocurre $A$ o no:
+
+$$P(B\vert A) = P(B\vert A^c) = P(B)$$ 
+
+esto es equivalente a la **regla de la multiplicación de eventos independientes**: $A$, $B$ son **independientes** si y solo si la probabilidad de 
+la intersección es el producto de las probabilidades:
+$$P(A\cap B) = P(A)P(B)$$
+
+La idea de independencia para más de dos eventos es una extensión natural de la
+independencia de dos eventos. Por ejemplo, los eventos $A$, $B$ y $C$ son 
+independientes si se satisface la **regla de la multiplicación de eventos independientes**: 
+$$P(ABC)=P(A)P(B)P(C)$$
+
+
+##### Suponer independencia o derivar independencia
+La independencia puede surgir de dos maneras:
+
+1. Algunas veces suponemos de manera explícita que dos eventos son independientes. Por ejemplo, cuando lanzamos una moneda dos veces, usualmente asumimos que los lanzamientos son independientes, y esto refleja que la moneda no tiene memoria. 
+
+2. En otras ocasiones derivamos la independencia verificando que $P(A \cap B) = P(A)P(B)$. Por ejemplo, cuando lanzamos un dado justo: sea $A=\{2,4,5\}$ y $B=\{1,2,3,4\}$, entonces $A\cap B = \{2,4\}$, $P(A \cap B)=2/6 = P(A)P(B)$, por tanto $A$ y $B$ son independientes.
+
+**Pregunta:** Supongamos que $A$ y $B$ son dos eventos mutuamente excluyentes, tales que
+$P(A)>0$ y $P(B)>0$ ¿pueden $A$ y $B$ ser independientes?
+
+
+**** 
+
+## Variables aleatorias
+La estadística esta ligada a datos, por tanto debemos encontrar una manera de
+relacionar el espacios de resultados y los eventos a los datos: la liga es el 
+concepto de variable aleatoria.
+
+<div class="caja">
+Una **variable aleatoria** $X$ es un mapa entre el espacio de resultados y los 
+números reales: $$X: \Omega \rightarrow \mathbb{R}$$ $$ \quad \quad \quad \omega \mapsto X(\omega)=x$$
+
+Al conjunto de valores que puede tomar $x$ se le denomina **soporte** de la variable aleatoria $X$ y se denota como $\Omega_X$.
+
+</div>
+
+##### Ejemplos
+1. Supongamos que lanzamos una moneda 2 veces. Definimos $X(\omega)$ como el número de 
+veces que obtenemos águila en la sucesión $\omega$. Por ejemplo, si 
+$\omega=AA$ entonces $X(\omega)=2$; podemos hacer la tabla completa de posibilidades:
+
+&nbsp;&nbsp;&nbsp; $\omega \in \Omega$ | AA | AS | SA | SS
+--------------------|----|----|----|---
+&nbsp;&nbsp;&nbsp; $X(\omega) = x$     | 2  |  1 |  1 | 0
+
+&nbsp;&nbsp;&nbsp; Si observamos el segundo renglón de la tabla notamos que el soporte de $X$  es $\Omega_X=\{0, 1, 2\}$.
+
+2. Supongamos que lanzamos una moneda hasta observar un águila, en esta caso
+el espacio de resultados es $\Omega=\{A, SA, SSA, SSSA,...\}$. Definimos
+la variable aleatoria $Y$ como el número de soles antes de observar la primer
+águila, entonces el soporte de $Y$ es $\Omega_Y=\{0, 1, 2, ...\}$.
+
+3. Sea $\Omega=\{(x,y): x^2 + y^2 \le 1\}$ el círculo unitario. Consideremos 
+seleccionar un punto de manera aleatoria de $\Omega$, por lo que un resultado
+típico es de la forma $\omega=(x, y)$. Podemos definir una variable aleatoria de diferentes maneras, por ejemplo:
+
+i. $X(\omega)=x$,
+ii. $Y(\omega)=y$,  
+iii. $Z(\omega)=x+y$, 
+iv. $W(\omega)=\sqrt{x^2+y^2}$, etc.
+
+Otra manera de ver una variable aleatoria es como una variable cuyo valor esta
+determinado por el resultado de un experimento aleatorio.
+
+Ahora, dada una variable aleatoria $X$ y un subconjuto $\mathcal{A}=(a,b)$ de la recta real 
+definimos el evento $A$ como $$A = X^{-1}(\mathcal{A}) = \{\omega \in \Omega: X(\omega) \in \mathcal{A}\}$$
+entonces, podemos definir una función de probabilidad $P$ que actúa sobre el soporte de $X$ $\Omega_X \in \mathbb{R}$ como sigue:
+$$P(X \in \mathcal{A}) = P(X^{-1}(\mathcal{A})) = P(A) = P(\{\omega \in \Omega: X(\omega) \in \mathcal{A}\})$$
+
+**Ejemplo:** Volviendo al ejemplo 1. del lanzamiento de una moneda dos veces, si definimos el subconjunto de los reales como
+$\mathcal{B} = 1$ y debido a que el evento asociado $B$ es $B=X^{-1}(\mathcal{B}) = \{AS,SA\}$,entonces la probabilidad de la variable aleatoria $X$ es $P(X \in \mathcal{B}) = 1/2$.
+
+Si $X$ toma únicamente un número finito de valores, la distribución
+de $X$ está determinada por las probabilidades de los valores individuales:
+$$P(X = x), \quad x \in \Omega_X$$
+La regla de la suma implica que:
+$$P(X \in \mathcal{A}) = \sum_{x \in \mathcal{A}}P(X = x)$$
+
+Dos variables aleatorias tienen la misma distribución si $X$ e $Y$ tienen el mismo soporte, y si para cualquier valor $v$ en el soporte
+$$P(X=v)=P(Y=v)$$.
+
+### Esperanza
+<div class="caja">
+La **esperanza** (**valor esperado** o **media**) de una variable aleatoria $X$,
+es la media de la distribución de $X$, esto es,
+$$E(X)=\sum_{x\in \Omega_x} x P(X=x)$$
+el promedio de todos los posibles valores de $X$ ponderados por sus probabilidades.
+
+La esperanza es una medida de tendencia central de la distribución de $X$.
+</div>
+
+**Ejemplo:** Si $X$ toma únicamente dos posibles valores, $a$ y $b$ con
+probabilidad $P(a)$ y $P(b)$ entonces
+$$E(X)=aP(a)+bP(b).$$
+
+**Ejemplo:** Supongamos que $X$ es el valor que se produce cuando tiro un
+dado justo. Entonces,
+$$E(X)=1\cdot P(X=1) +2\cdot P(X=2) +3\cdot P(X=3) +4\cdot P(X=4) +5\cdot P(X=5) +6\cdot P(X=6) = 3.5$$
+Lo que nos dice que si tiramos el dado muchas veces deberíamos esperar que el promedio de las tiradas sea cercano a 3.5.
+
+**Esperanza como un promedio de frecuencias relativas cuando $n$ es grande**. Si vemos las probabilidades de los valores de $X$ como una aproximación de frecuencias relativas cuando el número de ensayos $n$ es grande, entonces $E(X)$ es aproximadamente el valor promedio del valor que toma en los ensayos $X$ cuando $n$ es grande.
+
+```{r}
+x <- rnorm(10000, mean = 10)
+mean(x)
+```
+
+<!--
+**Esperanza y predicción**. Supongamos que deseamos predecir el valor de una variable aleatoria $X$. ¿Cuál es el mejor predictor de X? Para responder la pregunta es preciso seleccionar un criterio. Es común que el criterio 
+sea minimizar el 
+-->
+
+La esperanza satisface las siguientes propiedades: 
+
+1. **Constantes**. La esperanza de una variable aleatoria constante
+es su valor constante,
+$$E(c) = c$$
+
+2. **Indicadoras**. Si $I_A$ es la función indicadora del evento $A$, 
+$$E(I_A) = P(A)$$
+
+3. **Funciones**. Típicamente, $E[g(X)]\ne g[E(X)]$, pero
+$$E[g(X)] = \sum_{x \in \Omega_X} g(x) P(X=x)$$
+
+4. **Factores constantes**. Para una constante c,
+$$E(cX)=cE(X)$$
+
+5. **Adición**. Para cualquier par de variables aleatorias $X$, $Y$,
+$$E(X+Y) = E(X)+E(Y)$$
+
+6. **Multiplicación**. Típicamente $E(XY) \ne E(X)E(Y)$, pero
+si $X$ y $Y$ son independientes, entonces $$E(XY)=E(X)E(Y)$$
+
+
+
+
+
+<!-- Supongamos que lanzamos una moneda al aire y definimos la variable aleatoria
+$Z$ como el tiempo en segundos que transcurre antes de que la moneda toque el suelo. En este caso el espacio de resultados es inconveniente de describir. Sin
+embargo, el soporte de $Z$ sería $(0, \infty)$, es claro que el conjunto $(0, \infty)$ es demasiado grande, pero veremos que en la práctica a veces es
+conveniente estudiar el soporte extendido. -->
+
+
+### Varianza y desviación estándar
+Si intentamos predecir el valor de una variable aleatoria
+usando su media $E(X)=\mu$, vamos a fallar por una cantidad aleatoria $X-\mu$. Suele ser importante tener una idea de que tan grande será esta desviación. Debido a que
+$$E(X-\mu) = E(X)-\mu=0$$
+es necesario considerar la diferencia absoluta o la diferencia al cuadrado de $X-\mu$ con el fin de tener una idea del tamaño de la desviación sin importar el signo de esta. 
+
+**Varianza y desviación estándar**. La varianza de $X$, denotada $var(X)=\sigma^2$ es la media de la desviación cuadrada de $X$ respecto a su valor esperado $\mu=E(X)$:
+$$\sigma^2(X)=var(X)=E(X-\mu)^2$$
+La desviación estándar de $X$, es la raíz cuadrada de la varianza de X:
+$$\sigma(X)=se(X)=\sqrt{var(X)}$$
+
+Intuitivamente, $se(X)$ es una medida de la dispersión de la distribución de $X$ alrededor de su media. Debido a que la varianza es el valor esperado de la distribución de $(X-\mu)^2$, su raíz cuadrada da una idea del tamaño típico de la desviación absoluta $|X-\mu|$. Notemos que $E(X)$, $var(X)$ y $se(X)$ están determinados por $X$, de tal manera que si dos variables aleatorias tienen la misma distribución, 
+también tienen la misma media, varianza y desviación estándar.
+
+
+
+
+
+
