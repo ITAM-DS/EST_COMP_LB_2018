@@ -1,0 +1,395 @@
+---
+title: "Distribuciones Multivariadas"
+date: "09 de octubre de 2018"
+author: "León Berdichevsky Acosta"
+output: html_document
+
+---
+
+```{r options, echo = FALSE, message=FALSE, error=TRUE, warning=FALSE}
+knitr::opts_chunk$set(
+    comment = "#>",
+    collapse = TRUE, 
+    fig.width=3, fig.height=3
+)
+comma <- function(x) format(x, digits = 2, big.mark = ",")
+options(digits=3)
+
+library(tidyverse)
+library(gridExtra)
+theme_set(theme_minimal())
+```
+
+ 
+Hasta ahora hemos estudiado distribuciones univariadas, sin embargo, es común
+que un modelo probabilístico involucre más de una variable aleatoria por lo que
+es necesario el concepto de distribuciones de probabilidad multivariadas.
+
+<div class = "caja">
+La **distribución conjunta** sobre un conjunto de variables aleatorias $\{X_1,...,X_n\}$, que denotamos $p(x_1,...,x_n)$, asigna probabilidades a todos los eventos determinados por el conjunto de variables aleatorias.  
+
+En el caso **discreto bivariado**, dado las variables aleatorias discretas $X$ y 
+$Y$, definimos la función de masa de probabilidad conjunta como $p(x,y)=P(X=x, Y=y)$.
+</div>
+
+**Ejemplo.** Consideremos una distribución sobre la población de departamentos 
+en renta de Hong Kong, el espacio de resultados es el conjunto de todos los 
+departamentos en la población. En muchas ocasiones buscamos resolver preguntas 
+que involucran más de una variable aleatoria, en este ejemplo nos interesan:  
+
++ Renta mensual $R$: toma los valores baja (≤1k), media ((1k,5k]), 
+media alta ((5k,12k]) y alta (>12k).  
+
++ Tipo de departamento $T$: toma 3 valores, público, privado u otros. 
+
+La distribución conjunta de variables aleatorias discretas se puede representar 
+por medio de tablas.
+
+Renta/Tipo  $p(r,t)$  |público | privado |otros | Total $p_R(r)$
+--------------|------|-----|-----|-----  
+**baja**      |0.17  |0.01 |0.02 |0.20
+**media**     |0.44  |0.03 |0.01 |0.48  
+**media alta**|0.09  |0.07 |0.01 |0.17
+**alta**      |0     |0.14 |0.10 |0.15
+**Total** $p_T(t)$ |0.70  |0.25 |0.05 |1.00
+
+<div class = "caja">
+En el caso **continuo bivariado**, decimos que la función $p(x,y)$ es una 
+función de densidad de probabilidad para las variables aleatorias $(X,Y)$ si:
+
+1. $p(x,y) \geq 0$ para toda $(x,y) \in \mathbb{R} \times \mathbb{R}$.  
+
+2. $\int_{-\infty}^{\infty}p(x,y)dxdy=1$.  
+
+3. Para cualquier conjunto $A \subset \mathbb{R} \times \mathbb{R}$, 
+$P((X,Y) \in A) = \int\int_A p(x,y)dxdy$.
+</div>
+
+**Ejemplo:** Sean $(X,Y)$ uniformes en el cuadrado unitario, entonces
+$$
+p(x,y) = \left\{
+  \begin{array}{lr}
+    1   &  0\leq x \leq 1,0\leq y \leq 1\\
+    0 &  e.o.c.
+  \end{array}
+\right.
+$$
+
+Se desea encontrar $P(X < 1/2, Y<1/2)$, esto es, la probailidad del evento
+$A=\{X<1/2, Y<1/2\}$. La integral de $p(x,y)$ sobre este subconjunto corresponde, 
+en este caso, a calcular el área del conjunto $A$, la cual es igual a 1/4.
+
+
+
+De la distribución conjunta $p(x_1,...,x_n)$ podemos obtener la distribución de únciamente una variable aleatoria $X_j$, donde $X_j \in \{X_1,...,X_n\}$, como sigue:
+
+<br/>
+<div class="caja">
+Sea $\{X_1,...,X_n\}$ un conjunto de variables aleatorias con distribución conjunta $p(x_1,...,x_n)$, la **distribución marginal** de $X_j$ ($j \in \{1,...,n\}$) 
+se define como,
+$$p_{X_j}(x_j) = \sum_{x_1,...,x_{j-1},x_{j+1},...,x_n}p(x_1,...,x_n)\mbox{ en el caso discreto,}$$
+$$p_{X_j}(x_j) = \int_{x_1,...,x_{j-1},x_{j+1},...,x_n}p(x_1,...,x_n)dx_1,...,dx_n\mbox{ en el caso continuo}$$
+</div>
+
+<br/>
+
+
+**Ejemplo:** Retomando el problema de los departamentos, ¿Cuál es la 
+probabilidad de que 
+un departamento elegido al azar sea público?
+
+
+### Probabilidad condicional
+
+<div class="caja">
+Sean $A$, $B$ dos eventos con $P(B)>0$. Entonces, la probabilidad 
+condicional de $A$ dado $B$ es
+
+$$P(A|B)=\frac{P(AB)}{P(B)}$$
+</div>
+
+La noción de probabilidad condicional se extiende a distribuciones condicionales:
+
+<div class="caja">
+Sean $X$ y $Y$ dos variables aleatorias con función de densidad conjunta $p(x,y)$, entonces la función de densidad condicional de $X$ dado $Y=y$, para toda $y$ tal 
+que $p_Y(y) > 0$, se define como
+$$p_{X\vert Y}(x\vert y) = \frac{p(x, y)}{p_Y(y)}$$
+</div>
+<br/>
+
+**Ejemplo:** 
+
++ ¿Cuál es la probabilidad de que un departamento privado tenga
+renta baja?  
+
++ ¿Cómo se compara con la probabilidad de que la renta sea baja (desconozco
+el tipo de departamento)?
+
+**Ejemplo:** ¿Cuál es la distribución condicional de renta dado tipo privado?  
+Para obtener toda la distribución condicional calculamos los tres casos 
+restantes (renta media, media alta y alta).
+<br/>
+
+Vale la pena destacar que una distribución condicional es una distribución de probabilidad. En el ejemplo anterior notemos que cada renglón de la tabla probabilidades suman uno, son no negativas y menores que uno.
+
+
+### Probabilidad Total
+<div class ="caja">
+Sean $E$, $F$ dos eventos, entonces 
+$$P(E) = P(E\vert F)P(F) + P(E\vert F^c)P(F^c).$$
+De manera más general, sean $F_i$ $i = 1,...,n$ eventos mutuamente excluyentes cuya unión es el espacio muestral (una partición), entonces
+$$P(E) = \sum_{i=1}^n P(E\vert F_i)P(F_i).$$
+</div>
+
+<br/>
+La identidad anterior nos dice que podemos expresar la probabilidad del evento 
+$E$ como un promedio ponderado de probabilidades condicionales.
+
+Para variables aleatorias tenemos:
+
+<div class="caja">
+Sean $X$, $Y$ dos variables aleatorias, podemos expresar la distribución 
+marginal de $X$ como:
+$$p_X(x) = \sum_{y} p_{X \vert Y}(x\vert y)p_Y(y).$$
+**Ejemplo:** Supongamos que una aseguradora clasifica a la gente en tres grupos 
+de acuerdo a su nivel de riesgo: bajo, medio y alto. De acuerdo a los registros, 
+las probabilidades de incurrir en un accidente en un laspo de un año son 0.05,
+0.15 y 0.30 respectivamente. Si el 20\% de la población se clasifica en riesgo 
+bajo, 50\% en medio y 30\% en alto, ¿qué proporción de la población tiene un
+accidente en un año dado?
+
+</div>
+<br/>
+
+**Ejercicio:** Supongamos que ruedo un dado, si 
+observo un número par lanzo una moneda justa 
+(la probabilidad de observar águila es la misma que la de observar sol), si el 
+dado muestra un número impar lanzo una moneda sesgada en la que la probabilidad 
+de observar águila es 0.9. Si observo sol, ¿cuál es la probabilidad de que haya lanzado la moneda sesgada?
+
+El ejercicio anterior introduce la noción de probabilidad inversa: inicialmente conozco la probabilidad de observar sol condicional a que la moneda es sesgada 
+pero ahora me interesa conocer la probabilidad de que haya lanzado una moneda
+sesgada una vez que observé un sol en el volado.
+
+### Regla de Bayes
+La regla de Bayes es una consecuencia de la definición de probabilidad condicional:
+
+<div class="caja">
+Sean $F_i$ $i = 1,...,n$ una partición del espacio muestral, entonces
+$$P(F_j\vert E) = \frac{P(E\vert F_j)P(F_j)}{P(E)} = \frac{P(E\vert F_j)P(F_j)}{\sum_{i=1}^n P(E\vert F_i)P(F_i)}$$
+esta identidad se conoce como la **Regla de Bayes**.
+</div>
+
+
+**Ejemplo:** En el contexto del ejemplo de los seguros ahora nos hacemos la
+siguiente pregunta: si un asegurado tuvo accidentes hace un año, ¿cuál es la 
+probabilidad de que clasifique en riesgo bajo?
+
+<!--
+$$P(B\vert Accidente) = \frac{P(Accidente\vert B)P(B)}{P(Accidente\vert B)P(B) + P(Accidente\vert M)P(M) + P(Accidente\vert A)P(A)}$$
+Notemos que el denominador corresponde a la probabilidad de accidente que calculamos previamente ($P(Accidente) = 0.175$), 
+$$P(B\vert Accidente) = \frac{0.05\cdot 0.20}{0.175} \approx .057$$
+La nueva información implica que actualizemos de $P(B)= 0.20$ a $P(B\vert Accidente)=0.057$.
+-->
+
+Al igual que con probabilidad condicional, la Regla de Bayes tiene una 
+definición análoga para variables aleatorias: 
+
+<div class="caja">
+Sean $X$ y $Y$ dos variables aleatorias, entonces
+$$p_{X\vert Y}(x\vert y) = \frac{p_{Y\vert X}(y\vert x)p_X(x)}{p_Y(y)}.$$
+</div>
+
+
+
+Una consecuencia de la regla de Bayes es que cualquier distribución multivariada
+sobre $n$ variables $X_1,X_2,...X_n$ se puede expresar como:
+
+<div class="caja">
+$$p(x_1,x_2,...x_n) = p_{X_1}(x_1)p_{X_2\vert X_1}(x_2\vert x_1)p_{X_3\vert X_1X_2}(x_3\vert x_1x_2)···p_{X_n\vert X_1...X_{n-1}}(x_n\vert x_1...x_{n-1})$$
+esta igualdad se conoce como **Regla de la Cadena**.
+</div>
+
+Nótese que esta regla funciona para cualquier ordenamiento de las variables aleatorias.
+
+**Ejercicio:** Supongamos ahora que una compañía de
+seguros divide a la gente en dos clases: propensos a accidente (30\% de las 
+personas) y no propensos a accidente. En un año dado aquellos propensos a 
+accidentes sufren un accidente con probabilidad 0.4, mientras que los del otro 
+grupo sufren un accidente con probabilidad 0.2. ¿Cuál es la probabilidad de que 
+un asegurado tenga un accidente en su segundo año condicional a que sufrió un
+accidente en el primer año?
+
+
+### Independencia
+<div class="caja">
+Los eventos $E$, $F$ son independientes sí y solo sí 
+$$P(EF) = P(E)P(F)$$
+</div>
+
+De la definición de independencia se sigue que $P(E\vert F) = P(E)$. Esto es, los eventos $E$ y $F$ son independientes si al saber que uno de ellos ocurrió no afecta la probabilidad de que ocurra el otro. Utilizaremos la notación $E\perp F$ que se lee: *$E$ es independiente de $F$*.
+
+<div class="caja">
+Dos variables aleatorias $X$ y $Y$, son independientes sí y sólo sí
+$$p(x,y) = p_X(x)p_Y(y)$$
+</div>
+<br/>
+
+Más aún, $X$ y $Y$ son independientes sí y sólo sí la función de probablidad conjunta se puede escribir como: $p(x,y)  \propto g(x)h(y)$; por lo que para demostrar independecia podemos omitir las constantes en la factorización de las funciones de probabilidad.
+
+Similar a la independencia en eventos, la independencia de variables aleatorias implica que $p_{X\vert Y}(x\vert y) = p_X(x)$, esto es, $Y = y$ no provee información sobre $X$. 
+  
+**Ejemplo:** Consideremos la función de densidad de probabilidad conjunta 
+$$p(x,y) = \frac{1}{384} x^2y^4e^{-y-(x/2)}, x>0, y>0$$ 
+¿ Son $X$ y $Y$ independientes?
+
+Podemos definir
+$$
+g(x) = \left\{
+  \begin{array}{lr}
+    x^2e^{-x/2} & : x > 0\\
+    0 & : x \le 0
+  \end{array}
+\right.
+$$
+y
+$$
+h(y) = \left\{
+  \begin{array}{lr}
+    y^4e^{-y} & : x > 0\\
+    0 & : x \le 0
+  \end{array}
+\right.
+$$
+entonces $p(x,y) \propto g(x)h(y)$, para toda $x$, $y$ $\in \mathbb{R}$ y 
+concluímos que $X$ y $Y$ son independientes.
+
+**Ejercicio 2:*. Si la densidad conjunta de $X$ y $Y$ está dada por: 
+$$
+p(x, y) = \left\{
+  \begin{array}{lr}
+    2 & : 0 < x < y, 0 < y < 1\\
+    0 & : e.o.c.
+  \end{array}
+\right.
+$$
+
+¿Son $X$ y $Y$ independientes?
+
+
+**Ejercicio 3:**. Recordando el ejemplo de departamentos en Hong Kong, ¿Son 
+Renta y Tipo independientes? (*Sugerencia*: Compare $p(renta|tipo)$ y 
+$p(renta)$)
+
+
+
+#### Independencia condicional
+
+La independencia de eventos o variables aleatorias es poco común en la práctica, 
+más frecuente es el caso en que dos eventos son independientes dado un tercer 
+evento. 
+
+**Ejemplo:** En una competencia de velocidad, cada atleta 
+se somete a dos pruebas de dopaje que buscan detectar si el deportista ingirió 
+una sustancia prohibida. La prueba A consiste en un examen de sangre y la prueba 
+B en un exámen de orina, cada prueba se realiza en un laboratorio distinto y no 
+hay intercambio de información entre los laboratorios. Es razonable pensar 
+que los resultados de los dos exámenes no son independientes. Ahora, supongamos 
+que sabemos que el atleta consumió la sustancia prohibida, en este caso 
+podemos argumentar que conocer el resultado de la prueba A no cambia la 
+probabilidad de que el atleta salga positivo en la prueba B. Decimos que 
+el resultado de la prueba B es independiente del resultado
+de la prueba A conidicional a que el atleta consumió la sustancia.
+
+<div class="caja">
+Sean $A$, $B$ y $C$, tres eventos. Decimos que $A$ es independiente de $B$ 
+condicional a $C$ ($A \perp B \vert C$) si, 
+$$ P(A,B\vert C) = P(A\vert C)P(B\vert C)$$
+</div>
+
+
+Similar al caso de independencia, $A$ y $B$ son independientes 
+condicional a $C$ sí y solo sí $P(A \vert B,C) = P(A \vert C)$, esto es, una vez que
+conocemos el valor de $C$, $B$ no proporciona información adicional sobre $A$. 
+
+<!--**Ejemplo.** Retomemos el ejercicio de asegurados. En la solución de este 
+ejercicio utilizamos que $P(A_2|AA_1) = 0.4$ y que $P(A_2|A^cA_1) = 0.2$, al
+establecer esa igualdad estamos asumiendo que $A_2$ (el asegurado tiene un 
+accidente en el año 2) y $A_1$ (el asegurado tiene un accidente en el año 1) son
+eventos condicionalmente independientes dado $A$ (el asegurado es propenso a
+accidentes): $P(A_2|AA_1) = P(A_2|A) = 0.4$ y $P(A_2|A^cA_1) = P(A_2|A^c) = 0.2$.-->
+
+
+
+En el caso de variables aleatorias definimos independencia condicional como 
+sigue:
+
+<div class="caja">
+Sean $X$, $Y$ y $Z$, tres variables aleatorias. Decimos que $X$ es independiente 
+de $Y$ condicional a $Z$ ($X \perp Y \vert Z$) si y sólo sí, 
+$$p(x,y\vert z) = p_{X\vert Z}(x\vert z)p_{Y\vert Z}(y\vert z).$$
+</div>
+
+
+
+Y tenemos que $X$ es independiente de $Y$ condicional a $Z$ sí y sólo sí, 
+$p(x,y,z) \propto g(x,z)h(y,z)$.
+
+**Ejemplo:** Supongamos que ruedo un dado, si observo un número par realizo dos 
+lanzamientos de una moneda justa (la probabilidad de observar águila es la misma 
+que la de observar sol), si el dado muestra un número impar realizo dos 
+lanzamientos de una moneda sesgada en la que la probabilidad de observar águila
+es 0.9. Denotemos por $Z$ la variable aleatoria asociada a la selección de la 
+moneda, $X_1$ la correspondiente al primer lanzamiento y $X_2$ la 
+correspondiente al segundo. Entonces, $X_1$ y $X_2$ no son independientes, sin
+embargo, son condicionalmente independientes ($X_1 \perp X_2 \vert Z$), puesto 
+que una vez que se que moneda voy a lanzar el resultado del primer lanzamiento 
+no aporta información adicional para el segundo lanzamiento. Calcularemos la distribución conjunta y la distribución condicional de $X_2$ dado $X_1$.
+
+
+La distribución conjunta esta determinada por la siguiente tabla:
+
+ $Z$    | $X_1$ | $X_2$ | $P(Z,X_1,X_2)$  
+------|:----|:----|:-----------
+justa | a  | a  | 0.125
+justa | a  | s  | 0.125
+justa | s  | a  | 0.125 
+justa | s  | s  | 0.125 
+ses   | a  | a  | 0.405 
+ses   | a  | s  | 0.045 
+ses   | s  | a  | 0.005 
+ses   | s  | s  | 0.045 
+
+La distribución condicional $p(X_2|X_1)$ es,
+
+$X_1\vert X_2$|  a  |  s  | Total
+-----|-----|-----|---
+**a**|0.757|0.243|1
+**s**|0.567|0.433|1
+
+
+y la distribución condicional $p(X_2|X_1,Z)=p(X_2|Z)$ es,
+
+$Z$    |$X_1\vert X_2$|  a  |  s  | Total
+-------|-----|-----|-----|---
+justa  |**a, s**|0.5|0.5|1
+ses    |**a, s**|0.9|0.1|1
+
+
+
+En este punto es claro que $X \perp Y \vert Z$ no implica $X \perp Y$, pues 
+como vimos en el ejemplo de las monedas $X_1 \perp X_2 \vert Z$ pero 
+$X_1 \not \perp X_2$. Más aún, $X \perp Y$ tampoco implica $X \perp Y \vert Z$.
+
+<div class="caja">
+La independencia condicional tiene importantes consecuencias, por ejemplo, si $X$ 
+es independiente de $Y$ dado $Z$ entonces, 
+$$p(x,y,z) = p_Z(z)p_{X\vert Z}(x\vert z)p_{Y\vert Z}(y\vert z).$$
+</div>
+
+Esta expresión de la densidad conjunta es similar a la que obtendríamos usando 
+la regla de la cadena; sin embargo, el número de parámetros necesarios bajo esta 
+representación es menor, lo que facilita la estimación.
+
+
+
