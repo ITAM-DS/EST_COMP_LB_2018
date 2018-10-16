@@ -1,0 +1,316 @@
+---
+title: "Simulación de Modelos Probabilísticos"
+date: "16 de octubre de 2018"
+author: "León Berdichevsky Acosta"
+output: html_document
+
+---
+
+```{r options, echo = FALSE, message=FALSE, error=TRUE, warning=FALSE}
+knitr::opts_chunk$set(
+    comment = "#>",
+    collapse = TRUE, 
+    fig.width=3, fig.height=3
+)
+comma <- function(x) format(x, digits = 2, big.mark = ",")
+options(digits=3)
+
+library(tidyverse)
+library(gridExtra)
+theme_set(theme_minimal())
+```
+
+ 
+### Modelos gráficos
+
+El objetivo de esta sección es la simulación de modelos, una manera conveniente
+de simular un modelo probabilístico es a partir del modelo gráfico 
+asociado. Un modelo gráfico representa todas las cantidades involucradas en el 
+modelo mediante nodos de una gráfica dirigida.
+
+Los nodos en las gráficas se clasifican en 3 tipos:
+
+* __Constantes__ fijas por el diseño del estudio, siempre son nodos sin padres.
+
+* __Estocásticos__: son variables a los que se les asigna una distribución. 
+
+* __Determinísticos__: son funciones lógicas de otros nodos.
+
+
+El modelo representa el supuesto de que cada nodo $v$ depende únicamente de los nodos padres $padres(v)$ y es independiente del resto de los nodos.
+
+Los supuestos de independencia condicional que representa la gráfica implican
+que la distribución conjunta de todas las $n$ cantidades del modelo $V=\{v_1,..., v_n\}$ tiene una factorización en términos de la distribución condicional $p(v_i|padres(v_i))$ de tal manera que:
+$$p(V) = \prod_{i=1}^{n} p(v_i|padres(v_i))$$
+
+
+Veamos como usar las gráficas para simular modelos probabilísticos. Los 
+siguientes ejemplos están escritos con base en el libro [Data Analysis using
+Regression and Multilevel Hierarchical Models](http://www.stat.columbia.edu/~gelman/arm/) de Gelman y Hill.
+
+### Simulación discreta predictiva 
+
+**Ejemplo:** La probabilidad de que un bebé sea niña o niño es 48.8\% y 51.2\%, 
+respectivamente. Supongamos que hay 400 nacimientos en un hospital en un año 
+dado. ¿Cuántas niñas nacerán? 
+
+Comencemos viendo el modelo gráfico asociado.
+
+```{r, fig.width=3.5, fig.width=3.5, message=FALSE}
+library(DiagrammeR)
+grViz("
+digraph ninas {
+
+  # a 'graph' statement
+  graph [overlap = true]
+
+  # several 'node' statements
+  node [shape = box,penwidth = 0.1, fixedsize = true, fontsize = 9,
+        fontname = Helvetica, width = 0.2, height = 0.2]
+  p; n; 
+
+  node [shape = circle,
+        fixedsize = true, fontsize = 9,
+        fontname = Helvetica, width = 0.2] // sets as circles
+  k; 
+
+  # several 'edge' statements
+  edge[color = grey, arrowsize = 0.5, penwidth = 0.5]
+  p->k; n->k
+}
+")
+```
+
+
+La gráfica superior muestra todas las cantidades relevantes en el problema, y las
+dependencias entre ellas. En este caso $n=400$ es una constante que representa el 
+número de nacimientos, $p=48.8\%$ también es una constante que representa la probabilidad de que un nacimiento 
+resulte en niña y la probabilidad de que $k$ nacimientos sean niñas es una variable aleatoria con $k \sim Binomial(p, n)$. Debido a que el número de éxitos
+(nacimientos que resultan en niña) depende de la tasa $p$ y el número de 
+experimentos $n$, los nodos que representan a éstas dos últimas variables están
+dirigidos al nodo que representa a $k$.
+
+Una vez que tenemos la gráfica es fácil simular del modelo:
+
+```{r, message=FALSE}
+library(ggplot2)
+library(dplyr)
+library(arm)
+library(tidyr)
+set.seed(918739837)
+n_ninas <- rbinom(1, 400, 0.488)
+```
+
+Esto nos muestra una posible ocurrencia en 400 nacimientos. Ahora, para tener 
+una noción de la distribución simulamos el proceso 1000 veces:
+
+```{r}
+sims_ninas <- rerun(1000, rbinom(1, 400, 0.488)) %>% flatten_dbl()
+mean(sims_ninas)
+sd(sims_ninas)
+
+ggplot() + geom_histogram(aes(x = sims_ninas), binwidth = 3)
+```
+
+El histograma de arriba representa la distribución de probabilidad aproximada para el 
+número de niñas y toma en cuenta la incertidumbre. 
+
+**Ejemplo:** Podemos agregar complejidad al modelo; por ejemplo, asumimos que con probabilidad $m=1/125$ un nacimiento resulta en gemelos fraternales, y para cada uno de los bebés hay una
+probabilidad de aproximadamente $p_2=49.5\%$ de ser niña; además, asumimos que la probabilidad de que nazcan
+gemelos idénticos es de $q=1/300$ y estos a su vez resultan en niñas en 
+aproximadamente $p_3=40.5\%$ de los casos. 
+
+
+```{r, echo = FALSE, fig.width=3.5, fig.width=3.5, message=FALSE}
+grViz("
+digraph ninas_compleja {
+
+  # a 'graph' statement
+  graph [overlap = true]
+
+  # several 'node' statements
+  node [shape = box,penwidth = 0.1, fixedsize = true, fontsize = 9,
+        fontname = Helvetica, width = 0.2, height = 0.2]
+  p_i[label = 'p&#x2071;']; m; q;
+
+  node [shape = circle,
+        fixedsize = true, fontsize = 9,
+        fontname = Helvetica, width = 0.2] // sets as circles
+  k; n_i[label = 'n&#x2071;'];
+
+  # several 'edge' statements
+  edge[color = grey, arrowsize = 0.5, penwidth = 0.5]
+  m->n_i; q->n_i; p_i->k; n_i->k
+}
+")
+```
+
+donde $p_1=48.8\%$ es la probabilidad de nacimientos de niñas únicos y $n_i, i=1,2,3$ son el número de nacimientos de niñas únicos, en gemelos fraternales y en gemélos idénticos, respectivamente.
+
+Podemos simular 400 nacimientos bajo este modelo como sigue:
+
+```{r}
+set.seed(918739837)
+tipo_nacimiento <- sample(c("unico", "fraternal", "identicos"), 
+  size = 400, replace = TRUE, prob = c(1 - 1 / 125 - 1 / 300, 1 / 125, 1 / 300))
+n_unico <- sum(tipo_nacimiento == "unico")  # número de nacimientos únicos
+n_fraternal <- sum(tipo_nacimiento == "fraternal")
+n_identicos <- 400 - n_unico - n_fraternal
+n_ninas <- rbinom(1, n_unico, 0.488) +
+           rbinom(1, 2 * n_fraternal, 0.495) + # en cada nacimiento hay 2 bebés
+           2 * rbinom(1, n_identicos, 0.405)
+n_ninas
+```
+
+De nuevo, esto nos muestra una posible ocurrencia en 400 nacimientos. Ahora, para tener 
+una noción de la distribución repetimos la simulación 1000 veces para aproximar la distribución de número de niñas en 400 nacimientos.
+
+```{r}
+modelo2 <- function(){
+    tipo_nacimiento <- sample(c("unico", "fraternal", "identicos"), 
+        size = 400, replace = TRUE, prob = c(1 - 1 / 125 - 1 / 1300, 1 / 125, 1 / 300))
+    # número de nacimientos de cada tipo
+    n_unico <- sum(tipo_nacimiento == "unico")  # número de nacimientos únicos
+    n_fraternal <- sum(tipo_nacimiento == "fraternal")
+    n_identicos <- 400 - n_unico - n_fraternal
+    # simulamos para cada tipo de nacimiento
+    n_ninas <- rbinom(1, n_unico, 0.488) +
+        rbinom(1, 2 * n_fraternal, 0.495) + # en cada nacimiento hay 2 bebés
+    2 * rbinom(1, n_identicos, 0.495)
+  n_ninas
+}
+
+sims_ninas_2 <- rerun(1000, modelo2()) %>% flatten_dbl()
+mean(sims_ninas_2)
+
+ggplot() + geom_histogram(aes(x = sims_ninas_2), binwidth = 4)
+```
+
+
+### Simulación continua predictiva 
+
+El 52\% de los adultos en EUA son mujeres y el 48\% hombres. Las estaturas de 
+los hombres se distribuyen aproximadamente normal con  media 175 cm y desviación
+estándar de 7.37 cm; en el caso de las mujeres la distribución es 
+aproximadamente normal con media 161.80 cm y desviación estándar de 6.86 cm. 
+Supongamos que seleccionamos 10 adultos al azar. ¿qué podemos decir del promedio
+de estatura?
+
+```{r}
+set.seed(918739837)
+sexo <- rbinom(10, 1, 0.52)
+altura <- rnorm(sexo, mean = 161.8 * (sexo == 1) + 175 * (sexo == 0), 
+  sd = 6.86 * (sexo == 1) + 7.37 * (sexo == 0)) #Equivalente a simular de dos normales
+mean(altura)
+```
+
+De nuevo, esto nos muestra una posible ocurrencia en una selección. Ahora, para tener 
+una noción de la distribución de la altura promedio repetimos la simulación 1000 veces:
+
+```{r}
+mediaAltura <- function(){
+  sexo <- rbinom(10, 1, 0.52)
+  altura <- rnorm(sexo, mean = 161.8 * (sexo == 1) + 175 * (sexo == 0), 
+    sd = 6.86 * (sexo == 1) + 7.37 * (sexo == 0))
+}
+sims_alturas <- rerun(1000, mediaAltura()) 
+media_alturas <- sims_alturas %>% map_dbl(mean)
+mean(media_alturas)
+sd(media_alturas)
+ggplot() + geom_histogram(aes(x = media_alturas), binwidth = 1.2)
+```
+
+¿Y que podemos decir de la altura máxima?
+
+```{r}
+alt_max <- sims_alturas %>% map_dbl(max)
+qplot(alt_max, geom = "histogram", binwidth = 1.5)
+```
+
+**Ejercicio** Supongamos que una compañía cambia la tecnología
+usada para producir una cámara. Un estudio estima que el ahorro en la producción
+es de \$5 por unidad con un error estándar de \$4. Más aún, una proyección
+estima que el tamaño del mercado (esto es, el número de cámaras que se venderá)
+es de 40,000 con un error estándar de 10,000. Suponiendo que las dos fuentes de
+incertidumbre son independientes:
+
++ Usa simulación para estimar el total de dinero
+que ahorrará la compañía.
++ Calcula un intervalo de confianza.
+
+#### Simulación de un modelo de regresión 
+
+En regresión utilizamos simulación para capturar tanto la incertidumbre en la
+predicción (término de error en el modelo) como la incertidumbre en la inferencia
+(errores estándar de los coeficientes e incertidumbre del error residual). 
+
+Consideraremos un ejemplo en el que simulamos únicamente incertidumbre en la 
+predicción.
+
+**Ejemplo:** Supongamos que el puntaje de un niño de tres años en una prueba cognitiva esta 
+relacionado con las características de la madre. El siguiente modelo resume la
+diferencia en los puntajes promedio de los niños cuyas madres se graduaron
+de preparatoria y los que no.
+
+$$y_i= \beta_0 + \beta_1 X_{i1} + \epsilon_i$$
+
+donde $y$ es una variable aleatoria tal que $y_i$ representa el puntaje del i-ésimo niño, $X_{i1}$ es una variable binaria que
+indica si la madre se graduó de preparatoria (codificada como 1) o no 
+(codificada como 0) y $\epsilon_i$ son los errores aleatorios; se asume que éstos son 
+independientes con distribución normal $\epsilon_i \sim N(0, \sigma^2)$. Por tanto,
+
+$$\mu \equiv E[y_i]= \beta_0 + \beta_1 X_{i1}$$
+
+Ahora consideremos el problema de simular el puntaje de 50 niños, 30 cuyas madres
+terminaron la preparatoria y 20 cuyas madres no terminaron. Asumimos que conocemos los coeficientes
+del modelo y que éstos están dados por:
+
+$$\beta_0 = 78$$
+$$\beta_1 = 12$$
+$$\sigma = 20$$
+
+El modelo gráfico asociado sería como sigue:
+
+```{r, fig.width=3.5, fig.width=3.5, message=FALSE}
+grViz("
+digraph regresion {
+    graph [overlap = true]
+    node [shape = box,penwidth = 0.1, fixedsize = true, fontsize = 9,
+        fontname = Helvetica, width = 0.2, height = 0.2]
+    beta_0[label = '&beta;&#x2080;']; beta_1[label = '&beta;&#x2081;']; mu_i[label='&mu;&#x2071;'];
+    sigma[label = '&sigma;&#x00B2;']; X_i[label = 'X&#x2071;'];
+    node [shape = circle,
+        fixedsize = true, fontsize = 9,
+        fontname = Helvetica, width = 0.2] // sets as circles
+        Y_i[label = 'Y&#x2071;'];
+    edge[color = grey, arrowsize = 0.5, penwidth = 0.5]
+        mu_i->Y_i; sigma->Y_i;
+    edge[color = grey, arrowsize = 0.5, penwidth = 1]
+        beta_0->mu_i; beta_1 -> mu_i; X_i->mu_i;
+}
+")
+```
+
+Realizamos 2000 simulaciones de $y$: 
+```{r}
+vector_mu <- c(rep(78 + 12, 30), rep(78, 20)) # beta_0 + beta_1 X
+y <- rnorm(50, vector_mu, 20)
+sims_y <- rerun(2000, rnorm(50, vector_mu, 20))
+```
+
+Podemos estimar la destribución de la media $\mu \equiv E[y]$ y algunos cuantiles:
+
+```{r}
+medias <- sims_y %>% map_dbl(mean)
+quantile(medias, c(0.025, 0.975))
+
+qplot(medias, geom = "histogram", binwidth = 1.5)
+```
+
+
+
+
+#### Referencias
+
+* Andrew Gelman, Jennifer Hill (2007) [Data Analysis Using Regression and Multilevel/Hierarchical Models](http://www.stat.columbia.edu/~gelman/arm/).  
+
