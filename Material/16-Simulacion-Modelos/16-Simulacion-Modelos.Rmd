@@ -238,7 +238,7 @@ incertidumbre son independientes:
 que ahorrará la compañía.
 + Calcula un intervalo de confianza.
 
-#### Simulación de un modelo de regresión 
+### Simulación de un modelo de regresión 
 
 En regresión utilizamos simulación para capturar tanto la incertidumbre en la
 predicción (término de error en el modelo) como la incertidumbre en la inferencia
@@ -250,7 +250,7 @@ predicción.
 **Ejemplo:** Supongamos que el puntaje de un niño de tres años en una prueba cognitiva esta 
 relacionado con las características de la madre. El siguiente modelo resume la
 diferencia en los puntajes promedio de los niños cuyas madres se graduaron
-de preparatoria y los que no.
+de preparatoria y los que no
 
 $$y_i= \beta_0 + \beta_1 X_{i1} + \epsilon_i$$
 
@@ -259,16 +259,13 @@ indica si la madre se graduó de preparatoria (codificada como 1) o no
 (codificada como 0) y $\epsilon_i$ son los errores aleatorios; se asume que éstos son 
 independientes con distribución normal $\epsilon_i \sim N(0, \sigma^2)$. Por tanto,
 
-$$\mu \equiv E[y_i]= \beta_0 + \beta_1 X_{i1}$$
+$$\mu_i \equiv E[y_i]= \beta_0 + \beta_1 X_{i1}$$
 
-Ahora consideremos el problema de simular el puntaje de 50 niños, 30 cuyas madres
-terminaron la preparatoria y 20 cuyas madres no terminaron. Asumimos que conocemos los coeficientes
-del modelo y que éstos están dados por:
+Asumimos que conocemos los coeficientes del modelo y que éstos están dados por:
 
 $$\beta_0 = 78$$
 $$\beta_1 = 12$$
 $$\sigma = 20$$
-
 El modelo gráfico asociado sería como sigue:
 
 ```{r, fig.width=3.5, fig.width=3.5, message=FALSE}
@@ -291,7 +288,13 @@ digraph regresion {
 ")
 ```
 
-Realizamos 2000 simulaciones de $y$: 
+La pregunta que deseamos responder es: ¿cuál es la media esperada de los puntajes para un 
+conjunto de 50 niños, 30 con madres que hicieron preparatoria y 20 que no?
+
+Por tanto, consideremos el problema de simular el puntaje de 50 niños, 30 cuyas madres
+terminaron la preparatoria y 20 cuyas madres no terminaron. 
+
+Realizamos 2000 simulaciones de los 50 puntajes $y$: 
 ```{r}
 vector_mu <- c(rep(78 + 12, 30), rep(78, 20)) # beta_0 + beta_1 X
 y <- rnorm(50, vector_mu, 20)
@@ -306,6 +309,147 @@ quantile(medias, c(0.025, 0.975))
 
 qplot(medias, geom = "histogram", binwidth = 1.5)
 ```
+
+Consideraremos ahora un ejemplo en el que en la simulación de incertidumbre en la 
+predicción incorporamos incertidumbre en la inferencia.
+
+**Ejemplo:** Considere el modelo de regresión del ejemplo anterior. Vamos a incorporar incertidumbre en la inferencia a través de incertidumbre en los coeficientes de regresión. Expresaremos esta incertidumbre asumiendo distribuciones de probabilidad de los coeficientes: ¿Cómo sería el modelo gráfico asociado?
+
+Primero suponemos que $\sigma^2$ tiene una distribución centrada en $(20)^2$, inversamente
+proporcional a una distribución $\chi^2$ con 432 grados de libertad.
+
+También suponemos que
+
+$$
+\begin{eqnarray*}
+\begin{pmatrix}\beta_{0}\\
+\beta_{1}
+\end{pmatrix} & \sim & N\left[\left(\begin{array}{c}
+78\\
+12
+\end{array}\right), \sigma^2 \left(\begin{array}{cc}
+0.01 & -0.01\\
+-0.01 & 0.01
+\end{array}\right)\right]
+\end{eqnarray*}
+$$
+
+La manera de proceder para realizar una simulación es como sigue:
+
+1. Simula $\sigma=20\sqrt{(432)/X}$ donde $X$ es una generación de una
+distribución $\chi^2$ con $432$ grados de libertad.
+
+2. Dado $\sigma$ (obtenido del paso anterior), simula $(\beta_0, \beta_1)$ de una distribución
+normal bivariada con media $(78,12)$ y matriz de covarianzas 
+
+$$
+\begin{eqnarray*}
+V = \sigma^2 \left(\begin{array}{cc}
+0.01 & -0.01\\
+-0.01 & 0.01
+\end{array}\right)
+\end{eqnarray*}
+$$ 
+
+3. Simula el vector de observaciones $y$ usando los parámetros simulados en los pasos 1 y 2.
+
+```{r, fig.width=4, fig.height=4}
+set.seed(918739837)
+# empezamos simulando sigma
+sigma <- 20 * sqrt((432) / rchisq(1, 432))
+sigma
+# la usamos para simular betas
+beta <- MASS::mvrnorm(1, mu = c(78, 12), Sigma = sigma ^ 2 * matrix(c(0.011, -0.011, -0.011, 0.013), nrow = 2))
+beta
+
+# simulamos los puntajes
+vector_mu <- c(rep(beta[1] + beta[2], 30), rep(beta[1], 20)) # beta_0 + beta_1 X
+vector_mu
+obs = rnorm(50, vector_mu, sigma)
+obs
+
+#calculamos la media
+mean(obs)
+```
+
+De nuevo, esto nos muestra una posible ocurrencia en una selección. Ahora, para tener 
+una noción de la distribución de la media de los puntajes repetimos la simulación 2000 veces:
+
+
+```{r, fig.width=4, fig.height=4}
+simula_parametros <- function(){
+    # empezamos simulando sigma
+    sigma <- 20 * sqrt((432) / rchisq(1, 432))
+    # la usamos para simular betas
+    beta <- MASS::mvrnorm(1, mu = c(78, 12), 
+        # Sigma = sigma ^ 2 * matrix(c(4.2, -4.2, -4.2, 5.4), nrow = 2))
+        Sigma = sigma ^ 2 * matrix(c(0.011, -0.011, -0.011, 0.013), nrow = 2))
+    # Simulamos las observaciones
+    list(sigma = sigma, beta = beta)
+}
+
+sims_parametros <- rerun(2000, simula_parametros()) 
+
+# simulamos los puntajes
+simula_puntajes <- function(beta, sigma, n_hs = 30, n_nhs = 20){
+    vector_mu <- c(rep(beta[1] + beta[2], n_hs), rep(beta[1], n_nhs)) # beta_0 + beta_1 X
+    obs = rnorm(50, vector_mu, sigma)
+}
+
+sims_puntajes <- map(sims_parametros, ~simula_puntajes(beta = .[["beta"]], sigma = .[["sigma"]]))
+sims_medias <- sims_puntajes %>% map_dbl(mean)
+
+# Calculamos algunos cuantiles    
+quantile(sims_medias, c(0.025, 0.975))
+
+# Graficamos la distribución de las medias
+qplot(sims_medias, geom = "histogram", binwidth = 1)
+```
+
+
+<!--
+Los parametros se obtuvieron de ajustar el modelo de regresión lineal con una muestra real
+
+```{r}
+library(foreign)
+kids_iq <- read.dta("data/kidiq.dta")
+lm_kid <- lm(kid_score ~ mom_hs, kids_iq)
+summary(lm_kid)
+V <- vcov(lm_kid) / 20^2
+```
+
+
+
+```{r}
+summary(lm_kid)
+```
+-->
+
+También podemos usar la simulación para calcular incertidumbre en la estimación de $\beta_0$ y 
+$\beta_1$,
+
+```{r}
+sims_parametros %>% map_dbl(~(.$beta[1])) %>% sd()
+sims_parametros %>% map_dbl(~(.$beta[2])) %>% sd()
+```
+
+En este ejemplo, es posible calcular incertidumbre en las estimaciones de los coeficientes de manera 
+analíticamente; sin embargo, en otras situaciones esto no es posible. 
+
+Con simulación podemos responder fácilmente ésta y otras otras 
+preguntas; por ejemplo, la pregunta inicial: ¿cuál es la media esperada de los puntajes para un 
+conjunto de 50 niños, 30 con madres que hicieron preparatoria y 20 que no?
+
+<!--
+Podríamos usar `predict()` para calcular el estimador puntual de la media en el
+examen para los niños:
+
+```{r}
+pred_mi_pob <- predict(lm_kid, newdata = data.frame(mom_hs = c(rep(1, 30), 
+    rep(0, 20))), se.fit = TRUE)
+mean(pred_mi_pob$fit)
+```
+-->
 
 
 
