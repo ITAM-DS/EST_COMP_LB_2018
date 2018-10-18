@@ -1,0 +1,348 @@
+---
+title: "Inferencia paramétrica"
+author: "León Berdichevsky Acosta"
+date: "18 de octubre de 2018"
+output: html_document
+---
+
+
+## Estimadores de máxima verosimilitud
+
+```{r options, echo = FALSE, message=FALSE, error=TRUE, warning=FALSE}
+knitr::opts_chunk$set(
+    comment = "#>",
+    collapse = TRUE, 
+    fig.width=3, fig.height=3
+)
+comma <- function(x) format(x, digits = 2, big.mark = ",")
+options(digits=3)
+
+library(tidyverse)
+library(gridExtra)
+theme_set(theme_minimal())
+```
+
+
+Sean $X_1,...,X_n$ las observaciones de una muestra, independientes e 
+idénticamente distribuidas (*i.i.d.*) con función de probabilidad $p(x;\theta)$; esto es $X_1,...,X_n \sim p(x| \theta)$. La función de probabilidad depende de $k$ parámetros $\theta=(\theta_1,...,\theta_k)$ que deamos estimar. 
+
+Un estimador $\hat{\theta} = w(X_1,...,X_n)$ es una función de los datos. El método más común para estimar parámetros es el **método de máxima verosimilitud**.
+
+<div class="caja">
+La **función de verosimilitud** se define como:
+$$\mathcal{L}(\theta) = \prod_{i=1}^n p(x_i;\theta).$$
+La **función log-verosimilitud** se define como 
+$$\mathcal{l}(\theta)=\log \mathcal{L}(\theta)=\sum_{i=1}^n \log p(x_i; \theta)$$
+</div>
+<br/>
+La función de verosimilitud no es mas que la densidad conjunta de los datos, con 
+la diferencia de que la __tratamos como función del vector de parámetros__ $\theta \in \Theta$. Por 
+tanto $\mathcal{L}:\Theta \to [0, \infty)$. En general $\mathcal{L}(\theta)$ no 
+integra a uno respecto a $\theta$.
+<br/>
+
+El **estimador de máxima verosimilitud** es el valor $\hat \theta$ de $\theta$ que maximiza
+$\mathcal{L}(\theta)$.
+
+<br/>
+El máximo de $\mathcal{l}(\theta)$ se alcanza en el mismo lugar que el 
+máximo de $\mathcal{L}(\theta)$, ya que el logaritmo natural es una función monótona, por lo que maximizar la log-verosimilitud es equivalente a maximizar la verosimilitud.
+
+**Ejemplo:** Distribución Bernoulli. Supongamos que $X_1,...X_n \sim Bernoulli(\theta)$. La función de probabilidad correspondiente es:
+$$p(x;\theta)=\theta^x(1-\theta)^{1-x}, \quad x \in \{0,1\}$$ 
+
+por lo que la función de verosimilitud toma la forma:
+
+$$\mathcal{L}(p)=\prod_{i=1}^n p(x_i;\theta)=\prod_{i=1}^n \theta^{x_i}(1-\theta)^{1-x_i}=\theta^{\sum x_i}(1-\theta)^{n-\sum x_i} = \theta^{S}(1-\theta)^{n-S}$$
+
+donde denotemos como $S=\sum x_i$ al número de éxitos ($x=1$) en la muestra. Entonces, la función log-verosimilitud es:
+$$\mathcal{l}(\theta)=S \log \theta + (n-S) \log (1-\theta).$$
+
+
+Si $n=20$ y $S=12$ tenemos:
+
+```{r, fig.width=7.5, fig.height=2.5}
+# Verosimilitud X_1,...,X_n ~ Bernoulli(theta)
+L_bernoulli <- function(n, S){
+    function(theta){
+        theta ^ S * (1 - theta) ^ (n - S)
+    }  
+}
+# log-verosimilitud
+l_bernoulli <- function(n, S){
+    function(theta){
+        S * log(theta) + (n - S) * log(1 - theta)
+    }  
+}
+xy <- data.frame(x = 0:1, y = 0:1)
+verosimilitud <- ggplot(xy, aes(x = x, y = y)) +
+    stat_function(fun = L_bernoulli(n = 20, S = 12)) +
+    xlab(expression(theta)) +
+    ylab(expression(L(theta))) +
+    ggtitle("Verosimilitud (n=20, S = 12)")
+
+log_verosimilitud <- ggplot(xy, aes(x = x, y = y)) +
+    stat_function(fun = l_bernoulli(n = 20, S = 12))+
+    xlab(expression(theta)) +
+    ylab(expression(l(theta))) +
+    ggtitle("log-verosimilitud (n=20, S = 12)")
+
+grid.arrange(verosimilitud, log_verosimilitud, nrow = 1)  
+```
+
+En ocasiones podemos calcular el estimador de máxima verosimilitud analíticamente:
+
+1. Derivando respecto al vector de parámetros de interés, 
+2. Igualando a cero el sistema de ecuaciones resultante y despejando los parámetros, 
+3. Revisando la segunda derivada con respecto al vector de parámetros para asegurar que se encontró un máximo. 
+
+En el ejemplo anterior, este proceso permite obtener de manera analítica $\hat{\theta}=S/n$. Con $S=12, n = 20$ obtenemos $\hat{\theta}=0.6$
+
+Cuando no se puedo o es suficientemente complicado obtener una expresión analítica para los estimadores de máxima verosimilitud, se suele recurrir a métodos numéricos de optimización (por ejemplo Newton Raphson, BHHH, DFP). En el caso de R podemos usar las funciones `optim` y `optimize`.
+
+```{r}
+optimize(L_bernoulli(n = 20, S = 12), interval = c(0, 1), maximum = TRUE)
+optimize(l_bernoulli(n = 20, S = 12), interval = c(0, 1), maximum = TRUE)
+```
+
+**Ejercicio:** Sean $X_1,...X_n \sim N(\mu, \sigma^2)$: 
+
+* Calcule el estimador de máxima verosimilitud para $\theta = (\mu, \sigma^2)$.
+
+Supongamos que $n=100$ y que $\sum_{i=1}^{100} X_i = 40$ y $\sum_{i=1}^{100} X_i^2 = 20$.
+
+* Calcule $\hat{\theta}$ usando el método de máxima verosimilitud.
+
+* Grafique la verosimilitud o log-verosimilitud.
+
+
+### Propiedades de los estimadores de máxima verosimilitud
+
+Bajo ciertas condiciones del modelo, el estimador de máxima verosimilitud 
+$\hat{\theta}$ tiene propiedades deseables, las principales son:
+
+1. **Consistencia**: $\hat{\theta} \xrightarrow{P} \theta$ (converge en 
+probabilidad), donde $\theta$ es el verdadero valor del parámetro.
+
+2. **Equivarianza**: Si $\hat{\theta}$ es el estimador de máxima verosimilitud 
+de $\theta$, entonces $g(\hat{\theta})$ es el estimador de máxima verosimilitud
+de $g(\theta)$.  
+
+<!--  Supongamos $g$ invertible, entonces $\hat{\theta} = g^{-1}(\hat{\eta})$.
+  Para cualquier $\eta$, 
+  $$\mathcal{L}(\eta)=\prod_{i=1}^n p(x_i;g^{-1}(\eta)) = \prod_{i=1}^n p(x_i;\theta)=\mathcal{L}(\theta)$$
+  Por lo tanto, para cualquier $\eta$, 
+  $$\mathcal{L}(\eta)=\mathcal{L}(\theta) \leq \mathcal{L}(\hat{\theta})=\mathcal{L}(\hat{\eta})$$
+  y concluimos que $\hat{\eta}=g(\hat{\theta})$ maximiza $\mathcal{L}(\eta)$. 
+-->
+
+**Ejemplo:** Distribución Binomial. El estimador de máxima verosimilitud del parámetro $p$ es $\hat{p}=\bar{X}$, donde $\bar{X}$ es el promedio de la muestra. Si $\eta=log(p/(1-p)$, entonces el estimador de máxima verosimilitud de $\eta$ es $\hat{\eta}=log(\hat{p}/(1-\hat{p}))$.
+
+3. **Asintóticamente normal**: $\hat{\theta} \to N(\theta, I(\theta)^{-1})$ cuando $n \to \infty$, donde $I(\theta)$ es la **matriz de información** asintótica ($n \to \infty$), la cual definiremos en la siguiente sección.
+
+```{r, fig.width=3, fig.height=3}
+sim_sigma_hat <- function(n = 50, mu_sim = 0, sigma_sim = 1){
+    x <- rnorm(n, mu_sim, sigma_sim)
+    sigma_hat <- sqrt(sum((x - mean(x)) ^ 2) / n)
+}
+
+sigma_hats <- rerun(1000, sim_sigma_hat(n = 50, mu_sim = 10, sigma_sim = 5)) %>% 
+    flatten_dbl()
+
+# aprox normal con media theta y error estándar 
+mean(sigma_hats)
+sd(sigma_hats)
+
+ggplot(data_frame(sigma_hats), aes(sample = sigma_hats)) +
+    stat_qq() +
+    stat_qq_line()
+```
+
+
+4. **Asintóticamente eficiente**: A grandes razgos, esto quiere decir que del
+conjunto de estimadores con comportamiento estable, el estimador de máxima 
+verosimilitud tiene la menor varianza cuando $n \to \infty$ (alcanza la cota de Cramer-Rao).
+
+Una vez calculados los estimadores de maxima verosimilitud, el siguiente paso en el proceso de inferencia paramétrica es calcular errores estándar e intervalos de confianza. 
+
+### Matriz de información y errores estándar
+
+La matriz Hessiana es la matriz de segundas derivadas de la log-verosimilitud 
+respecto a los parámetros:
+
+$$H(\theta)=\frac{d^2 \mathcal{l}(\theta)}{d\theta d\theta^´}$$
+donde $\theta^´$ es el vector de parámetros transpuesto.
+
+La **matriz de información** es el negativo del valor esperado de la matriz Hessiana:
+
+$$I_n(\theta) = - E[H(\theta)]$$
+
+La matriz de varianzas y covarianzas de un vector de estimadores $\hat \theta$ de máxima verosimilitud es igual a la inversa de la matriz de información $I_n(\theta)$:
+
+$$var(\hat \theta)=[I_n(\theta)]^{-1}$$
+
+
+
+
+
+Entonces, la matriz de varianzas y covarianzas de $\hat{\theta}$ es:
+
+$$var(\hat \theta) = [I_n(\theta)]^{-1} = \big(-E[H(\theta)]\big)^{-1}=\bigg(-E\bigg[\frac{d^2 \mathcal{l}(\theta)}{d\theta d\theta^´}\bigg] \bigg)^{-1}$$
+
+
+**Ejemplo:** Distribución Bernoulli. La matriz de información (de una dimensión) es $I_n(\theta) = \frac{n}{\theta(1-\theta)}$. Por tanto, la varianza del estimador de máxima verosimilitud es $var(\hat \theta)=\frac{\theta(1-\theta)}{n}$.
+
+<br/>
+¿Porqué se calculan de esta manera los errores estándar? 
+
+Idea intuitiva: Podemos pensar que la
+curvatura de la función de verosimilitud nos dice que tanta certeza tenemos
+de la estimación de nuestros parámetros. Entre más curva es la función de 
+verosimilitud mayor es la certeza de que hemos estimado el parámetro adecuado. 
+La segunda derivada de la verosimilitud es una medida de la curvatura local de la 
+misma, es por esto que se utiliza para estimar la incertidumbre con la que 
+hemos estimado los parámetros.
+
+**Ejemplo:** Distribución Bernoulli.
+
+```{r, fig.width=8, fig.height=2.8}
+l_b1 <- ggplot(xy, aes(x = x, y = y)) +
+    stat_function(fun = L_bernoulli(n = 20, S = 10)) +
+    xlab(expression(theta)) +
+    ylab(expression(L(theta))) +
+    labs(title = "Verosimilitud", subtitle = "n=20, S = 10")
+l_b2 <- ggplot(xy, aes(x = x, y = y)) +
+    stat_function(fun = L_bernoulli(n = 20, S = 14)) +
+    xlab(expression(theta)) +
+    ylab(expression(L(theta))) +
+    labs(title = "Verosimilitud", subtitle = "n=20, S = 14")
+l_b3 <- ggplot(xy, aes(x = x, y = y)) +
+    stat_function(fun = L_bernoulli(n = 20, S = 19)) +
+    xlab(expression(theta)) +
+    ylab(expression(L(theta))) +
+    labs(title = "Verosimilitud", subtitle = "n=20, S = 19")
+
+grid.arrange(l_b1, l_b2, l_b3, nrow = 1)
+```
+
+Supongamos que el vector de parámetros $\theta$ es de dimensión 1. Cuando $n$ (tamaño de la muestra) es grande, el estimador de máxima verosimilitud $\hat{\theta}$ es aproximadamente Normal, por lo que obtenemos el siguiente resultado:
+
+Bajo condiciones de regularidad apropiadas, se cumple que:
+
+1. Por definición, el error estándar de $\hat \theta$ es $se=\sqrt{1/I_n(\theta)}$. Entonces
+$$\frac{(\hat{\theta} - \theta)}{se} \to N(0, 1), \quad n \to \infty$$
+
+2. Si aproximamos el error estandar de $\hat \theta$ mediante $\hat{se}=\sqrt{1/I_n(\hat{\theta})}$, entonces
+$$\frac{(\hat{\theta} - \theta)}{\hat{se}} \to N(0, 1), \quad n \to \infty$$
+
+El primer enunciado dice que $\hat{\theta}$ se distribuye aproximadamente como $N(\theta,se)$ para $n$ grande. Por su parte el
+segundo enunciado dice que esto es cierto incluso si reemplazamos el error 
+estándar por su aproximación $\hat{se}=\sqrt{1/I_n(\hat{\theta})}$. Podemos 
+utilizar esta propiedad para construir intervalos de confianza Normales.
+
+La propiedad anterior se puede generalizar al caso en el que el vector de parámetros $\theta$ es de dimensión mayor a 1.
+
+**Ejemplo:** Distribución Bernoulli. Supongamos que $X_1,...X_n \sim Bernoulli(\theta)$. El 
+estimador de máxima verosimilitud es $\hat{\theta}=\sum_{i=1}^n X_i/n$ y un intervalo de confianza 
+de aproximadamante 95% es:
+$$\hat{\theta} \pm 1.96 \bigg\{\frac{\hat{\theta}(1- \hat{\theta})}{n} \bigg\}^{1/2}$$
+
+
+#### Método delta
+
+Si $\tau=g(\theta)$ donde $\theta$ consta de únicamente un 
+parámetro, $g$ es diferenciable y $g´(\theta)\neq 0$ entonces
+$$\frac{\sqrt{n}(\hat{\tau}-\tau)}{\hat{se}(\hat{\tau})}\to N(0, 1), \quad n \to \infty$$
+donde $\hat{\tau}=g(\hat \theta)$ y $\hat{se}(\hat{\tau})=|g´(\hat{\theta})|\hat{se}(\hat{\theta})$.
+
+
+Por tanto, el **método delta** nos provee de un método para aproximar el error estándar
+y crear intervalos de confianza aproximados. Existe también una extensión del 
+método delta para el caso en que $\theta$ es un vector de dimensión mayor a 
+uno, es decir, cuando el modelo tiene más de un parámetro.
+
+Notemos que los intervalos de confianza calculados son asintóticos; en el 
+caso de tener muestras chicas podemos utilizar *bootstrap* para calcularlos. Incluso con muestras grandes puede ser más conveniente usar bootstrap para calcular errores estándar cuando no hay fórmulas analíticas.
+
+
+## Bootstrap paramétrico
+
+El método bootstrap también se puede utilizar para el cálculo de errores 
+estándar y de intervalos de confianza en un modelo paramétrico. 
+
+Recordemos que en _bootstrap no paramétrico_ obteníamos muestras bootstrap $X_1^*,...,X_n^*$
+de la distribución empírica $P_n$. En el caso de **bootstrap paramétrico**, 
+las muestras se obtienen de la distribución de probabilidad estimada $p(x,\hat{\theta})$, donde $\hat{\theta}$ es una estimación del vector de parámetros ${\theta}$ (esta se puede obtener por máxima verosimilitud, por ejemplo).
+
+**Ejemplo**. Sean $X_1,...,X_n$ i.i.d. con $X_i \sim N(\mu, \sigma^2)$. Sea 
+$\theta = g(\mu,\sigma)=\sigma/\mu$; a esta cantidad se le conoce como el 
+coeficiente de variación. Estima $\theta$ y su error estándar. 
+
+Algoritmo bootstrap para estimar errores estándar:
+ 
+1. Calculamos $\hat{\mu}=1/n \sum{X_i}$ y $\hat{\sigma}^2=1/n \sum(X_i-\hat{\mu})^2$ como estimadores de máxima verosimilitud de $\mu$ y $\sigma^2$.
+
+Repetimos B veces los siguientes pasos 2. y 3.:
+
+2. Simulamos una muestra bootstrap $X_1^*,...,X_n^*$ con $X_i^*\sim N(\hat{\mu},\hat{\sigma}^2)$.
+
+3. Calculamos una replicación $\hat{\mu}^*=1/n \sum{X_i^*}$ y $\hat{\sigma^*}^2=1/n \sum(X_i^*-\hat{\mu}^*)^2$ y $\hat{\theta^*}=\hat{\sigma}^*/\hat{\mu}^*$.
+
+4. Estimamos el error estándar como:
+$$\hat{se}_B=\sqrt{\frac{1}{B-1}\sum_{b=1}^B \big(\hat{\theta}^*(b) - \bar{\theta}\big)^2}$$
+
+
+Veamos un ejemplo donde tenemos 200 observaciones con una distribución 
+$N(10, 5^2)$ y nos interesa estimar $\theta=\sigma/\mu$.
+
+```{r}
+n <- 200
+x <- rnorm(n, mean = 10, sd = 5)  # observaciones normales
+
+# Paso 1: calcular mu_hat y sigma_hat
+mu_hat <- mean(x)  
+sigma_hat <- sqrt(1 / n * sum((x - mu_hat) ^ 2)) 
+
+# Pasos 2 y 3
+thetaBoot <- function(){
+    # Simular X_1*,...X_N* con distribución N(mu_hat, sigma_hat^2) 
+    x_boot <- rnorm(n, mean = mu_hat, sd = sigma_hat) 
+    # Calcular mu*, sigma* y theta*
+    mu_boot <- mean(x_boot)
+    sigma_boot <- sqrt(1 / n * sum((x_boot - mu_boot) ^ 2)) 
+    sigma_boot / mu_boot # theta*
+}
+
+# Paso 4: Repetimos B = 2000 veces y estimamos el error estándar
+sims_boot <- rerun(3000, thetaBoot()) %>% flatten_dbl()
+sqrt(1 / 2999 * sum((sims_boot - sigma_hat/mu_hat) ^ 2))
+```
+
+Podemos comparar éste resultado con el obtenido mediante el método delta. Se puede demostrar que con este método, de manera asintótica ($n \to \infty$) se obtiene el error estándar 
+$$\hat{se}=\frac{1}{\sqrt{n}}\bigg(\frac{1}{\hat{\mu}^4} + \frac{\hat{\sigma}^2}{2\hat{\mu}^2}\bigg)^{1/2}$$
+
+```{r}
+1 / sqrt(n) * (1 / mu_hat ^ 4 + sigma_hat ^ 2 / (2 * mu_hat ^ 2)) ^ (1 / 2)
+```
+
+
+**Ejercicio:** Supongamos que observamos $n=70$ realizaciones de 
+una distribución $Bernoulli(n,p)$, de tal manera que observamos 20 éxitos. Calcula un intervalo de
+confianza usando bootstrap para el parámetro $\theta = p$ y comparalo con el correspondiente intervalo de confianza calculado usando la información de Fisher (matriz de información en 1 dimensión).
+
+```{r, eval=FALSE, echo = FALSE}
+p_hat <- 20/70
+
+simBern <- function(){
+  x_boot <- sample(0:1, size = 70, replace = TRUE, prob = c(1-p_hat, p_hat))
+  mean(x_boot)
+}
+sims_boot <- rerun(2000, simBern()) %>% flatten_dbl()
+sd(sims_boot)
+## Fisher
+sqrt(p_hat * (1 - p_hat) / 70)
+```
+
+#### Referencias
+
+* Larry Wasserman (2007) [All of Statistics](http://www.stat.cmu.edu/~larry/all-of-statistics/).
