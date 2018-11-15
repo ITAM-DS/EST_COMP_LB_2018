@@ -123,6 +123,7 @@ Más de calibración:
 
 * Más pruebas en [An Educated Guess](http://sethrylan.org/bayesian/index.html).
 
+
 #### Descripción matemática de creencias subjetivas
 
 **Ejemplo:** podemos pensar que una mujer mexicana promedio mide 156 cm pero 
@@ -666,7 +667,7 @@ Supongamos que observamos $N$ lanzamientos de
 los cuales $z$ son águilas, entonces podemos ver que la distribución posterior es nuevamente
 una densidad Beta.
 
-$$p(\theta|z)\propto \theta^{a+z-1}(1 -\theta)^{(N-z+b)-1} = p(x|\theta) p(\theta)$$
+$$p(\theta|z)\propto \frac{\theta^{a+z-1}(1 -\theta)^{(N-z+b)-1}}{B(a,b)} = p(x|\theta) p(\theta)$$
 
 Concluímos entonces que si la distribución inicial es $Beta(a,b)$, la posterior
 es $Beta(z+a,N-z+b)$.
@@ -1327,7 +1328,7 @@ valores propuestos en cada uno de los dos casos?
 que sea más conveniente?
 
 
-De la muestra de valores de $p(\theta|x)$ obtenidos usando el algoritmo de
+1. **Estimación:** De la muestra de valores de $p(\theta|x)$ obtenidos usando el algoritmo de
 Metrópolis podemos estimar aspectos de la verdadera distribución $p(\theta|x)$.
 Por ejemplo, para resumir la tendencia central es fácil calcular la media y 
 la mediana.
@@ -1337,7 +1338,7 @@ mean(caminata_f$theta)
 sd(caminata_f$theta)
 ```
 
-En el caso de predicción:
+2. **Predicción:** En el caso de predicción:
 
 ```{r}
 sims_y <- rbinom(nrow(caminata_f), size = 1, prob = caminata_f$theta)
@@ -1345,6 +1346,399 @@ mean(sims_y) # p(y = 1 | x) probabilidad predictiva
 sd(sims_y)
 ```
 
+
+### Ejemplo bivariado: Inferencia de dos proporciones binomiales
+Consideramos la situación en la que nos interesa estudiar dos proporciones 
+$\theta_1$ y $\theta_2$ correspondientes a dos grupos. Queremos determinar
+que debemos creer de estas proporciones tras observar datos provenientes de 
+ambos grupos.
+
+En el marco Bayesiano comenzamos definiendo nuestras creencias iniciales. En 
+este caso nuestras creencias describen combinaciones de parámetros, es decir
+debemos especificar la distribución inicial bivariada $p(\theta_1, \theta_2)$ para todas las combinaciones 
+$\theta_1, \theta_2$. 
+
+Un caso sencillo es asumir que nuestras creencias de $\theta_1$ son independientes
+de nuestras creencias de $\theta_2$. Esto implica:
+
+$$p(\theta_1, \theta_2) = p(\theta_1)p(\theta_2)$$ 
+para todo valor de $\theta_1$
+y de $\theta_2$ y donde $p(\theta_1)$ y $p(\theta_2)$ corresponden a las 
+distribuciones iniciales marginales. Las creencias de los dos parámetros no tienen porque
+ser independientes; por ejemplo, puedo creer que dos monedas acuñadas en la 
+misma casa de moneda tienen un sesgo similar, en este caso las manipulaciones
+matemáticas son más complicadas pero es posible describir estas creencias 
+mediante una distribución conjunta bivariada.
+
+Además de las creencias iniciales tenemos datos observados. Suponemos que los 
+lanzamientos dentro de cada grupo son independientes y que los lanzamientos
+entre los grupos también lo son. Es importante recalcar que siempre suponemos
+independencia en los datos, sin importar nuestros supuestos de independencia en 
+las creencias.
+
+Para el primer grupo observamos la secuencia $\{x_{1,1},...,x_{1,N_1}\}$ que 
+contiene $z_1$  águilas, y en el otro grupo observamos la sucesión $\{x_{2,1},...,x_{2,N_2}\}$ que contiene $z_2$ águilas. Es decir, 
+$$z_1 = \sum_{i=1}^{N_1}x_{1,i}, \quad z_2 = \sum_{i=1}^{N_2}x_{2,i}$$
+Por simplicidad denotamos todos los datos por 
+$x =\{x_{1,1},...,x_{1,N_1}x_{2,1},...,x_{2,N_2}\}$
+
+Debido a la independencia de los lanzamientos tenemos la siguiente función de verosimilitud:
+
+$$p(x|\theta_1,\theta_2)=\prod_{i=1}^{N_1}p(x_{1,i}|\theta_1,\theta_2)\cdot \prod_{i=1}^{N_2}p(x_{2,i}|\theta_1,\theta_2)$$
+$$= \theta_1^{z_1}(1-\theta_1)^{N_1-z_1}\cdot  \theta_2^{z_2}(1-\theta_2)^{N_2-z_2}$$
+
+Usamos la regla de Bayes para calcular la distribución posterior:
+
+$$p(\theta_1,\theta_2|x)=p(x|\theta_1,\theta_2)p(\theta_1, \theta_2) / p(x)$$
+$$= \frac{p(x|\theta_1,\theta_2)p(\theta_1, \theta_2)} { \int\int p(x|\theta_1,\theta_2)p(\theta_1, \theta_2)d\theta_1d\theta_2}$$
+Resta calcular la doble integral en el denominador que define la evidencia $p(x)$.
+
+
+##### Distribuciones conjugadas
+Siguiendo el caso de la familia Beta-Bernoulli univariada que estudiamos en el caso de 
+una proporción y suponiendo independencia en las creencias, 
+$p(\theta_1, \theta_2) = p(\theta_1)p(\theta_2)$. Escribimos la densidad inicial 
+como el producto de dos densidades beta, donde $\theta_1$ se distribuye 
+$Beta(a_1, b_1)$ y $\theta_2$ se
+distribuye $Beta(a_2, b_2)$. 
+
+$$p(\theta_1, \theta_2)=\frac{\theta_1^{a_1-1}(1-\theta)^{b_1-1}} {B(a_1, b_1)}\frac{ \theta_2^{a_2-1}(1-\theta)^{b_2-1}}{B(a_2, b_2)}$$
+
+donde la función beta está definida en términos de la función gamma de Euler $B(a, b) = \Gamma(a)\Gamma(b) / \Gamma(a+b)$.
+
+La posterior se escribe:
+
+$$p(\theta_1, \theta_2|x)=\frac{\theta_1^{z_1+a_1-1}(1-\theta)^{N_1-z_1+b_1-1}\cdot \theta_2^{z_2+a_2-1}(1-\theta)^{N_2-z_2+b_2-1}}{p(x)\cdot B(a_1, b_1) \cdot B(a_2, b_2)}$$
+Vemos que, cuando la inicial es el producto de distribuciones beta 
+independientes, la posterior también es el producto de distribuciones beta
+independientes. Por lo tanto 
+
+$$p(x) = \frac{B(z_1+a_1,N_1-z_1+b_1)B(z_2,N_2-z_2+_b2)}{B(a_1, b_1) \cdot B(a_2, b_2)}$$
+Visualizaremos las distribuciónes bivariadas mediante gráficas de contornos. 
+
+Consideremos la siguinete elección de los parámetros iniciales $a_1=b_1=a_2=b_2=3$. Por lo que la distribución inicial bivariada es: 
+
+```{r, fig.width=9.5, fig.height=4.5}
+grid <- expand.grid(x = seq(0.01, 1, 0.01), y = seq(0.01, 1, 0.01))
+grid_inicial <- grid %>% 
+  mutate(z = dbeta(x, 3, 3) * dbeta(y, 3, 3))
+
+binom_2_inicial <- ggplot(grid_inicial, aes(x = x, y = y, z = z)) + 
+  # geom_tile(aes(fill = z)) +
+    geom_raster(aes(fill = z), show.legend = FALSE) +
+    geom_contour(colour = "white") +
+    # stat_contour(binwidth = 0.6, aes(color = ..level..), show.legend = FALSE) +
+    scale_x_continuous(expression(theta[1]), limits = c(0, 1)) +
+    scale_y_continuous(expression(theta[2]), limits = c(0, 1)) +
+    scale_color_gradient(expression(p(theta[1],theta[2])), limits = c(0, 8.6)) +
+    scale_fill_gradient(expression(Probabilidad), limits = c(0, 8.6)) +
+    coord_fixed() +
+    labs(title = "Inicial")
+```
+
+Si asumimos que los datos se pueden resumir mediante $z_1=5, N_1=7, z_2=2, N_2=7$, la función de verosimiliud es: 
+
+```{r, fig.width=9.5, fig.height=4.5}
+grid_v <- grid %>% 
+  mutate(z = dbeta(x, 6, 3) * dbeta(y, 3, 6))
+
+binom_2_verosimilitud <- ggplot(grid_v, aes(x = x, y = y, z = z)) + 
+    geom_raster(aes(fill = z), show.legend = FALSE) +
+    geom_contour(colour = "white") +
+    # stat_contour(binwidth = 0.6, aes(color = ..level..), show.legend = FALSE) +
+  scale_x_continuous(expression(theta[1]), limits = c(0, 1)) +
+  scale_y_continuous(expression(theta[2]), limits = c(0, 1)) +
+  scale_color_gradient(expression(p(theta[1],theta[2])), limits = c(0, 8.6)) +
+        scale_fill_gradient(expression(Probabilidad), limits = c(0, 8.6)) +
+  coord_fixed() +
+    labs(title = "Verosimilitud")
+```
+Note que usamos un producto de distribuciones beta para expresar el producto de distribuciones Bernoulli (la normalización no coincide).
+
+La distribución posterior bivariada es entonces:
+```{r, fig.width=9.5, fig.height=4.5}
+grid_post <- grid %>% 
+  mutate(z = dbeta(x, 8, 5) * dbeta(y, 5, 8))
+  
+binom_2_posterior <- ggplot(grid_post, aes(x = x, y = y, z = z)) + 
+    geom_raster(aes(fill = z)) +
+    geom_contour(colour = "white", show.legend = FALSE) +
+    # stat_contour(binwidth = 0.6, aes(color = ..level..), show.legend = FALSE) +
+  scale_x_continuous(expression(theta[1]), limits = c(0, 1)) +
+  scale_y_continuous(expression(theta[2]), limits = c(0, 1)) +
+  # scale_color_gradient(expression(p(theta[1],theta[2])), limits = c(0, 8.6)) +
+    scale_fill_gradient(expression(Probabilidad), limits = c(0, 8.6)) +
+  coord_fixed() +
+    labs(title = "Posterior")
+
+grid.arrange(binom_2_inicial, binom_2_verosimilitud, binom_2_posterior, 
+    nrow = 1, widths = c(0.3, 0.3, 0.4))
+```
+
+También podemos realizar gráficas tridimensionales:
+```{r, fig.width = 3.2, fig.height= 3.2}
+# library(plotly)
+# grid_inicial_pl <- grid_inicial %>% spread(y, z) %>% as.matrix()
+# pl_inicial <- plot_ly(z = grid_inicial_pl) %>% add_surface(cmin = 0, cmax = 9)
+# grid_v_pl <- grid_v %>% spread(y, z) %>% as.matrix()
+# pl_verosimilitud <- plot_ly(z = grid_v_pl) %>% add_surface(cmin = 0, cmax = 9)
+# grid_post_pl <- grid_post %>% spread(y, z) %>% as.matrix()
+# pl_post <- plot_ly(z = grid_post_pl) %>% add_surface(cmin = 0, cmax = 9)
+# 
+# pl_inicial
+# pl_verosimilitud
+# pl_post
+```
+
+
+#### Algoritmo de Metrópolis
+
+Al igual que en el caso univariado escribimos la la distribución inicial, la función de verosimilitud y la distribución posterior no normalizada:
+
+```{r}
+# Inicial bivariada
+prior2 <- function(a_1 = 3, b_1 = 3, a_2 = 3, b_2 = 3){
+  function(theta) dbeta(theta[1], a_1 , b_1) * dbeta(theta[2], a_2 , b_2)
+}
+
+# Verosimilitud binomial bivariada
+likeBern2 <- function(z_1, N_1, z_2, N_2){
+  function(theta){
+    theta[1] ^ z_1 * (1 - theta[1]) ^ (N_1 - z_1) *
+    theta[2] ^ z_2 * (1 - theta[2]) ^ (N_2 - z_2)
+  }
+}
+
+# Posterior bivariada no normalizada
+postRelProb2 <- function(theta){
+  mi_like(theta) * mi_prior(theta)
+}
+```
+
+Implementemos el algoritmo con el producto de dos distribuciones iniciales Beta(3,3) y observaciones
+$z_1=5$, $N = 7$, $z_1=2$ y $N = 7$, es decir lanzamos 14 volados, 7 de cada moneda.
+
+```{r, fig.height=4, fig.width=8}
+z_1=5; N_1=7; z_2=2; N_2=7; a_1=3; a_2=3; b_1=3; b_2=3
+# Datos observados
+N = 14
+z = 11
+
+# Defino mi inicial y la verosimilitud
+mi_prior <- prior2() 
+mi_like <- likeBern2(z_1 = z_1, N_1 = N_1, z_2 = z_2, N_2 = N_2) # verosimilitud
+```
+
+Para proponer saltos usaremos una **distribución propuesta** normal bivariada. 
+
+Recordemos el algoritmo: el movimiento se acepta de manera definitiva si la **distribución objetivo** (posterior no normalizada) es más densa en la posición propuesta que en la posición 
+actual, y se acepta de manera probabilistica si la distribución objetivo es más densa en posición actual  que en la posición propuesta.
+
+```{r}
+# para cada paso decidimos el movimiento de acuerdo a la siguiente función
+caminaAleat2 <- function(theta){ # theta: valor actual
+	salto_prop <- MASS::mvrnorm(n = 1 , mu = rep(0, 2), 
+    Sigma = matrix(c(0.1, 0, 0, 0.1), byrow = TRUE, nrow = 2)) # salto propuesto
+  theta_prop <- theta + salto_prop # theta propuesta
+  if(all(theta_prop < 0) | all(theta_prop > 1)){ # salir del dominio
+    return(theta)
+  }
+  u <- runif(1) 
+  p_move = min(postRelProb2(theta_prop) / postRelProb2(theta), 1) # prob mover
+  if(p_move  > u){
+    return(theta_prop) # aceptar valor propuesto
+  }
+  else{
+    return(theta) # rechazar
+  }
+}
+
+set.seed(47405)
+
+pasos <- 6000
+camino <- matrix(0, nrow = pasos, ncol = 2) # vector que guardará las simulaciones
+camino[1, ] <- c(0.1, 0.8) # valor inicial
+
+# Generamos la caminata aleatoria
+for (j in 2:pasos){
+  camino[j, ] <- caminaAleat2(camino[j - 1, ])
+}
+
+caminata <- data.frame(pasos = 1:pasos, theta_1 = camino[, 1], 
+                       theta_2 = camino[, 2])
+```
+
+Graficamos la caminata aleatoria:
+```{r, fig.width = 8.5}
+ggplot(caminata, aes(x = theta_1, y = theta_2)) +
+  geom_point(size = 0.8) +
+  geom_path(alpha = 0.3) +
+  scale_x_continuous(expression(theta[1]), limits = c(0, 1)) +
+  scale_y_continuous(expression(theta[2]), limits = c(0, 1)) +
+  coord_fixed()
+
+```
+
+También podemos graficar las caminatas aleatorias "marginales":
+```{r, fig.width = 8.5}
+caminata_m <- caminata %>%
+  gather(parametro, val, theta_1, theta_2) %>%
+  arrange(pasos)
+
+ggplot(caminata_m[1:2000, ], aes (x = pasos, y = val)) +
+  geom_path(alpha = 0.5) +
+  facet_wrap(~parametro, ncol = 1) +
+  scale_y_continuous("", limits = c(0, 1))
+```
+
+
+
+## Muestreador de Gibbs
+
+El algoritmo de Metrópolis es muy general y se puede aplicar a una gran variedad
+de problemas. Sin embargo, afinar los parámetros de la **distribución propuesta**
+para que el algoritmo funcione correctamente, es decir, para que explore de manera eficiente el espacio de parámetros de la **distribucion objetivo** puede ser complicado. Por otra
+parte, como veremos a continuación, el **muestredor de Gibbs** no necesita de una distribución propuesta, ni de la distribución objetivo conjunta.
+
+Para implementar un muestreador de Gibbs se necesita únicamente ser capaz de generar
+muestras de las distribuciones posteriores marginales de cada parámetro individual condicinales al resto de los parámetros. Esto es, el muestreador de Gibbs permite generar 
+muestras de la distribucion posterior:
+$$p(\theta_1,...,\theta_p|x)$$
+siempre y cuando podamos generar valores de todas las distribuciones posteriores marginales
+condicionales:
+$$p(\theta_k|\theta_1,...,\theta_{k-1},\theta_{k+1},...,\theta_p,x)$$
+ 
+
+El proceso del muestreador de Gibbs es una caminata aleatoria a lo largo del 
+espacio de parámetros. La caminata inicia en un punto arbitrario y, en cada 
+tiempo, el siguiente paso depende únicamente de la posición actual. Por tanto,
+el muestredor de Gibbs es un proceso Cadena de Markov vía Monte Carlo (MCMC). La 
+diferencia entre el muestreador de Gibbs y el algoritmo de Metrópolis radica en cómo se eligen los siguientes pasos y en el hecho de que un nuevo paso siempre se acepta. 
+
+En el caso del muestreador de Gibbs, en cada punto de la caminata aleatoria se selecciona uno de los
+componentes del vector de parámetros (típicamente se cicla en orden). Supongamos 
+que se selecciona el parámetro $\theta_k$, entonces obtenemos un nuevo valor
+para este parámetro generando una simulación de la distribución condicional
+$$p(\theta_k|\theta_1,...,\theta_{k-1},\theta_{k+1},...,\theta_p,x)$$
+
+El nuevo valor $\theta_k$ junto con los valores que aún no cambian 
+$\theta_1,...,\theta_{k-1},\theta_{k+1},...,\theta_p$ constituyen la nueva 
+posición en la caminata aleatoria. 
+
+Seleccionamos una nueva componente del vector de parámetros $\theta$ y repetimos el proceso.
+
+El muestreador de Gibbs es útil cuando no podemos determinar de manera analítica
+la distribución posterior conjunta (no normalizada) pero sí podemos determinar todas las distribuciones posteriores marginales condicionales y simular de ellas.
+
+**Ejemplo:** Ejemplificaremos el muestreador de Gibbs con el ejemplo de las dos proporciones binomiales, a 
+pesar de no ser necesario en este caso.
+
+Comenzamos identificando las distribuciones condicionales posteriores para cada 
+parámetro:
+
+$$p(\theta_1|\theta_2,x) = p(\theta_1,\theta_2|x) / p(\theta_2|x)$$
+$$= \frac{p(\theta_1,\theta_2|x)} {\int p(\theta_1,\theta_2|x) d\theta_1}$$
+
+Usando iniciales $Beta(a_1, b_1)$ y $Beta(a_2,b_2)$, obtenemos:
+
+$$p(\theta_1|\theta_2,x) = \frac{Beta(\theta_1|z_1 + a_1, N_1 - z_1 + b_1) Beta(\theta_2|z_2 + a_2, N_2 - z_2 + b_2)}{\int Beta(\theta_1|z_1 + a_1, N_1 - z_1 + b_1) Beta(\theta_2|z_2 + a_2, N_2 - z_2 + b_2) d\theta_1}$$
+$$= \frac{Beta(\theta_1|z_1 + a_1, N_1 - z_1 + b_1) Beta(\theta_2|z_2 + a_2, N_2 - z_2 + b_2)}{Beta(\theta_2|z_2 + a_2, N_2 - z_2 + b_2)}$$
+$$=Beta(\theta_1|z_1 + a_1, N_1 - z_1 + b_1)$$
+
+Debido a que la posterior es el producto de dos distribuciones Beta 
+independientes es claro que $p(\theta_1|\theta_2,x)=p(\theta_1|x)$. 
+
+Una vez que determinamos las distribuciones condicionales, simplemente hay que 
+encontrar una manera de obtener muestras de éstas, en R podemos usar la 
+función `rbeta`.
+
+<!--<img src="imagenes/pasos_gibbs.png" width="600px"/>-->
+
+```{r}
+pasos <- 12000
+camino <- matrix(0, nrow = pasos, ncol = 2) # vector que guardará las simulaciones
+camino[1, 1] <- 0.1 # valor inicial
+camino[1, 2] <- 0.1
+
+# Generamos la caminata aleatoria
+for (j in 2:pasos){
+  if(j %% 2){
+    camino[j, 1] <- rbeta(1, z_1 + a_1, N_1 - z_1 + b_1)
+    camino[j, 2] <- camino[j - 1, 2]
+  }
+  else{
+    camino[j, 2] <- rbeta(1, z_2 + a_2, N_2 - z_2 + b_2)
+    camino[j, 1] <- camino[j - 1, 1]
+  }
+}
+
+caminata <- data.frame(pasos = 1:pasos, theta_1 = camino[, 1], 
+  theta_2 = camino[, 2])
+```
+
+Graficamos la caminata aleatoria bivariada:
+```{r}
+ggplot(caminata[1:2000, ], aes(x = theta_1, y = theta_2)) +
+    geom_point(size = 0.8) +
+    geom_path(alpha = 0.5) +
+    scale_x_continuous(expression(theta[1]), limits = c(0, 1)) +
+    scale_y_continuous(expression(theta[2]), limits = c(0, 1)) +
+    coord_fixed()
+```
+
+También podemos graficar las caminatas aleatorias marginales:
+```{r, fig.width = 8.5}
+caminata_g <- filter(caminata, pasos %% 2 == 0) %>%
+  gather(parametro, val, theta_1, theta_2) %>%
+  mutate(pasos = rep(1:6000, 2)) %>%
+  arrange(pasos)
+
+ggplot(caminata_g[1:2000, ], aes(x = pasos, y = val)) +
+  geom_path(alpha = 0.3) +
+  facet_wrap(~parametro, ncol = 1) +
+  scale_y_continuous("", limits = c(0, 1))
+```
+
+1. **Estimación:** Comparamos los resultados del muestreador de Gibbs con los del algoritmo de Metrópolis: 
+```{r}
+# Metropolis
+caminata_m %>% 
+  filter(pasos > 1000) %>% # eliminamos el calentamiento
+  group_by(parametro) %>%
+  summarise(
+    media = mean(val),
+    mediana = median(val),
+    std = sd(val)
+    )
+
+# Gibbs
+caminata_g %>% 
+  filter(pasos > 1000) %>%
+  group_by(parametro) %>%
+  summarise(
+    media = mean(val),
+    mediana = median(val),
+    std = sd(val)
+    )
+```
+Note que en ambos casos las estimaciones son muy cercanas.
+
+También podemos comparar los sesgos de las dos monedas:
+```{r, fig.align='center',fig.width=4,fig.height=4, warning=FALSE}
+caminata <- caminata %>%
+  mutate(dif = theta_1 - theta_2)
+
+ggplot(caminata, aes(x = dif)) + 
+  geom_histogram(fill = "gray") + 
+  geom_vline(xintercept = 0, alpha = 0.8, color = "red")
+```
+
+
+La principal ventaja del muestreador de Gibbs sobre el algoritmo de Metrópolis
+es que no hay necesidad de seleccionar una distribución propuesta y no hay que
+lidiar con lo ineficiente de rechazar valores, además de que no necesitamos conocer la distrbución objetivo conjunta. A cambio, debemos ser capaces
+de derivar las distribuciones posteriores marginales condicionales de cada parámetro y generar 
+muestras de estas. 
 
 
 ### Referencias
