@@ -1741,6 +1741,241 @@ de derivar las distribuciones posteriores marginales condicionales de cada pará
 muestras de estas. 
 
 
+### Ejemplo Bivariado: Función de Verosimilitud Normal
+Retomemos el caso de observaciones normales. Supongamos que tenemos una muestra 
+$x_1,...,x_N$ de observaciones independientes e identicamente distribuidas *i.i.d.*, 
+con $x_i \sim N(\mu, \sigma^2)$. Vamos a considerar el caso de media desconocida, el caso de varianza
+desconocida y el caso en el que ambas son desconocidas.
+
+
+#### Distribuciones Conjugadas
+
+**Normal con media desconocida**. Supongamos que $\sigma^2$ es conocida, por lo 
+que nuestro parámetro de interés es únicamente $\mu$. Describiremos nuestro
+conocimiento inicial de $\mu$ a través de una distribución inicial normal con media $m$ y varianza $\tau^2$ conocidas, ya que ésta es una distribución conjugada de la verosimilitud en cuestión:
+$$\mu \sim N(m, \tau^2)$$
+La distribución posterior resulta en:
+$$\mu|x \sim N\bigg(\frac{\sigma^2}{\sigma^2 + N\tau^2}m + \frac{N\tau^2}{\sigma^2 + N \tau^2}\bar{x}, \frac{\sigma^2 \tau^2}{\sigma^2 + N\tau^2}\bigg)$$
+
+**Normal con varianza desconocida**. Supongamos que $\mu$ es conocida, por lo 
+que nuestro parámetro de interés es únicamente $\sigma^2$. En este caso una
+distribución conveniente para describir nuestro conocimiento inicial es
+la distribución _Gamma Inversa_ con parámetros conocidos, ya que ésta es conjugada a la verosimilitud en cuestión.
+
+La distribución Gamma Inversa es una distribución contínua con dos parámetros
+y que toma valores en los positivos. Como su nombre lo indica, esta distribución
+corresponde al recírpoco de una variable cuya distribución es Gamma. Recordemos
+que si $x\sim Gamma(\alpha, \beta)$ entonces:
+
+$$p(x)=\frac{1}{\beta^{\alpha}\Gamma(\alpha)}x^{\alpha-1}e^{-x/\beta}$$
+
+donde $x>0$. Ahora si $y$ es la variable aleatoria recírpoca de $x$ entonces:
+
+$$p(y)=\frac{\beta^\alpha}{\Gamma(\alpha)}y^{-\alpha - 1} exp{-\beta/y}$$
+
+con media 
+$$\frac{\beta}{\alpha-1}$$
+y varianza
+$$\frac{\beta^2}{(\alpha-1)^2(\alpha-2)}.$$
+
+Debido a la relación entre las distribuciones Gamma y Gamma Inversa, podemos
+utilizar la función `rgamma` de R para generar valores de distribución gamma 
+inversa.
+
+```{r, fig.align='center',fig.width=4,fig.height=4, warning=FALSE}
+# 1. simulamos valores porvenientes de una distribución gamma
+x_gamma <- rgamma(2000, shape = 5, rate = 1)
+# 2. invertimos los valores simulados
+x_igamma <- 1 / x_gamma
+
+# También podemos usar las funciones de MCMCpack
+library(MCMCpack)
+x_igamma <- data.frame(x_igamma)
+
+ggplot(x_igamma, aes(x = x_igamma)) +
+  geom_histogram(aes(y = ..density..), binwidth = 0.05, fill = "gray") + 
+  stat_function(fun = dinvgamma, args = list(shape = 5, scale = 1), 
+    color = "red")  
+```
+
+Volviendo al problema de inferir acerca del parámetro $\sigma^2$, si resumimos
+nuestro conocimiento inicial a través de una distribución Gamma Inversa tenemos
+$$p(\sigma^2)=\frac{\beta^\alpha}{\Gamma(\alpha)}\frac{1}{(\sigma^2)^{\alpha + 1}} e^{-\beta/\sigma^2}$$
+
+Recordemos la función de verosimiltud:
+$$p(x|\mu, \sigma^2)=\frac{1}{(2\pi\sigma^2)^{N/2}}exp\left(-\frac{1}{2\sigma^2}\sum_{j=1}^{N}(x_j-\mu)^2\right)$$
+
+La distribución posterior resulta en:
+
+$$p(\sigma^2) \propto p(x|\mu,\sigma^2)p(\sigma^2)$$
+
+por lo que obtenemos una distribución Gamma Inversa
+$$\sigma^2|x \sim GI(N/2+\alpha, \beta + 1/2 \sum(x_i - \mu)^2)$$.
+
+Por tanto, como anticipamos, tenemos que la inicial Gamma Inversa con verosimilitud Normal para el parámetro $\sigma^2$ es una familia conjugada.
+
+
+#### Muestreador de Gibbs
+
+**Normal con media y varianza desconocidas**. Sea $\theta=(\mu, \sigma^2)$. Especificamos la siguiente inicial para $\theta$:
+$$\theta \sim N(\mu|m, \tau^2)\cdot GI(\sigma^2|\alpha, \beta)$$
+donde suponemos que los hiperparámetros $m,\tau^2, \alpha, \beta$ son conocidos. 
+
+Entonces, la distribución posterior no normalizada es:
+$$ p(\theta|x) \propto p(x|\theta) p(\theta)$$
+$$= \frac{1}{(\sigma^2)^{N/2}}
+  exp\bigg(-\frac{1}{2\sigma^2}\sum_{i=1}^N (x_i-\mu)^2 \bigg)
+  exp\bigg(-\frac{1}{2\tau^2}(\mu-m)^2)\bigg) 
+  \frac{1}{(\sigma^2)^{\alpha +1}}
+  exp\bigg(-\frac{\beta}{\sigma^2}\bigg)$$
+
+En esta última distribución no reconocemos el núcleo de niguna distribución 
+conocida, por lo que no podemos utilizar el método de distribuciones conjugadas. 
+
+Sin embargo, si nos concentramos únicamente en los términos que involucran
+a $\mu$ tenemos: 
+
+$$exp\left(-\frac{1}{2}\left( \mu^2 \left( \frac{N}{\sigma^2} + 
+\frac{1}{\tau^2} \right) 
+- 2\mu\left(\frac{\sum_{i= 1}^n x_i}{\sigma^2} + \frac{m}{\tau^2}\right) \right)\right)$$
+
+Esta expresión depende de $\mu$ y $\sigma^2$, por lo que condicional a $\sigma^2$ observamos el núcleo de una distribución normal:
+
+$$\mu|\sigma^2,x \sim N\left(\frac{n\tau^2}{n\tau^2 + \sigma^2}\bar{x} +  \frac{\sigma^2}{N\tau^2 + \sigma^2}m, \frac{\tau^2\sigma^2}{n\tau^2 + \sigma^2} \right)$$
+
+Si nos fijamos únicamente en los tárminos que involucran a $\sigma^2$ tenemos:
+
+$$\frac{1}{(\sigma^2)^{N/2+\alpha+1}}exp\left(- \frac{1}{\sigma^2}
+\left(\sum_{i=1}^N \frac{(x_i-\mu)^2}{2} + \beta \right) \right)$$
+
+por lo que condicional a $\mu$ reconocemos el núcleo de una distribución Gamma Inversa: 
+
+$$\sigma^2|\mu,x \sim GI\left(\frac{N}{2} + \alpha, \sum_{i=1}^n \frac{(x_i-\mu)^2}{2} + \beta \right)$$
+
+Obtenemos de esta forma las distribuciones posteriores marginales condicionales completas $p(\mu|\sigma^2, x)$ y 
+$p(\sigma^2|\mu, x)$, las cuales son distribuciones conocidas y de las cuales podemos 
+simular. 
+
+Ésto nos permite implementar un muestreador de Gibbs. 
+
+Comenzamos definiendo las distrbuciones iniciales:
+
+* $\mu \sim N(1.5, 16)$, esto es $m = 1.5$ y $\tau^2 = 16$.
+
+* $\sigma^2 \sim GI(3, 3)$, esto es $\alpha = \beta = 3$.
+
+Ahora supongamos que observamos 50 realizaciones (observaciones) provenientes de la distribución de interés (la que da lugar a la función de verosimilitud):
+
+```{r}
+N <- 50 # Observamos 50 realizaciones
+set.seed(122)
+x <- rnorm(N, 2, 2) 
+x
+```
+
+Escribimos el muestreador de Gibbs:
+
+```{r}
+m <- 1.5; tau2 <- 16; alpha <- 3; beta <- 3 # parámetros de iniciales
+
+pasos <- 20000
+camino <- matrix(0, nrow = pasos + 1, ncol = 2) # vector que guardará las simulaciones
+camino[1, 1] <- 0 # valor inicial media
+camino[1, 2] <- 0.1 # valor inicial varianza
+
+# Generamos la caminata aleatoria
+for (j in 2:(pasos)){
+  # sigma^2
+  if(j %% 2){
+    mu <- camino[j - 1, 1] #Actualizar los par?metros
+    a <- N / 2 + alpha
+    b <- sum((x  - mu) ^ 2) / 2 + beta
+    camino[j, 1] <- camino[j - 1, 1] #mu no cambia
+    camino[j, 2] <- 1/rgamma(1, shape = a, rate = b) #Actualizar sigma2
+  }
+  # mu
+  else{
+    sigma2 <- camino[j - 1, 2] #Actualizar los par?metros
+    media <- (N * tau2 * mean(x) + sigma2 * m) / (N * tau2 + sigma2)
+    var <- sigma2 * tau2 / (N * tau2 + sigma2)
+    camino[j, 2] <- camino[j - 1, 2] #sigma2 no cambia
+    camino[j, 1] <- rnorm(1, media, sd = sqrt(var)) #Actualizar mu
+  }
+}
+
+caminata <- data.frame(pasos = 1:pasos, mu = camino[1:pasos, 1], 
+  sigma2 = camino[1:pasos, 2])
+```
+
+Podemos graficar la caminata aleatoria:
+```{r}
+ggplot(caminata[1000:2000, ], aes(x = mu, y = sigma2)) +
+  geom_point(size = 0.8) +
+  geom_path(alpha = 0.5) +
+  scale_x_continuous(expression(mu), limits = c(0, 5)) +
+  scale_y_continuous(expression(sigma^2), limits = c(0, 10)) +
+  coord_fixed()
+```
+
+También podemos graficar las caminatas aleatorias marginales (eliminando el periodo de calentamiento):
+```{r}
+caminata_g <- caminata %>%
+  gather(parametro, val, mu, sigma2) %>%
+  arrange(pasos)
+
+ggplot(filter(caminata_g, pasos > 15000), aes(x = pasos, y = val)) +
+  geom_path(alpha = 0.3) +
+  facet_wrap(~parametro, ncol = 1, scales = "free") +
+  scale_y_continuous("")
+
+```
+
+1. **Inferencia:** Podemos graficar las distribuciones posteriores marginales:
+```{r, fig.width = 4}
+ggplot(filter(caminata_g, pasos > 5000), aes(x = val)) +
+  geom_histogram(fill = "gray") +
+  facet_wrap(~parametro, ncol = 1, scales = "free") 
+```
+
+y calcular algunos resúmenes de la posterior:
+
+```{r}
+caminata_g %>%
+  filter(pasos > 1000) %>% # eliminamos la etapa de calentamiento
+  group_by(parametro) %>%
+  summarise(
+    mean(val), 
+    sd(val), 
+    median(val)
+    )
+```
+
+2. **Predicción**. Para predecir el valor de una realización futura $y$ recordemos
+que:
+
+$$p(y) =\int p(y|\theta)p(\theta|x)d\theta$$
+
+
+Por tanto podemos aproximar la distribución predictiva posterior como:
+
+```{r, fig.height=3.5, fig.width=3.5}
+caminata_f <- filter(caminata, pasos > 5000)
+
+caminata_f$y_sims <- rnorm(1:nrow(caminata_f), caminata_f$mu, caminata_f$sigma2)
+
+ggplot(caminata_f, aes(x = y_sims)) + 
+  geom_histogram(fill = "gray") +
+  geom_vline(aes(xintercept = mean(y_sims)), color = "red")
+```
+
+**Ejercicio:** ¿Cuál es la probabilidad de que una observación futura sea mayor a 8? 
+
+**Ejercicio:**  En estadística bayesiana es común parametrizar la distribución Normal en 
+términos de la precisión $\nu$, la cual se define como el inverso de la varianza $\sigma^2$. Si parametrizamos de esta manera $\nu = 1/\sigma^2$, repita el ejemplo anterior con la
+diferencia de utilizar la distribución inicial Gamma para $\nu$ en lugar de la Gamma inversa para $\sigma^2$.
+
+
+
 ### Referencias
 
 * [Understanding Computational Bayesian Statistics](https://www.amazon.com/Understanding-Computational-Bayesian-Statistics-William/dp/0470046090), William M. Bolstad.
