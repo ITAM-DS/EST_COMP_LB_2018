@@ -1976,6 +1976,409 @@ diferencia de utilizar la distribución inicial Gamma para $\nu$ en lugar de la 
 
 
 
+## JAGS
+
+JAGS (Just Another Gibbs Sampler), WinBUGS y OpenBUGS son programas que 
+implementan métodos MCMC para generar simulaciones de distribuciones 
+posteriores. Los paquetes rjags y R2jags permiten ajustar modelos en JAGS 
+desde R. Es muy fácil utilizar estos programas pues uno simplemente debe
+especificar las distribuciones iniciales, la verosimilitud y los datos 
+observados. 
+
+#### Instalación
+
+* Instalar [JAGS](http://mcmc-jags.sourceforge.net).
+
+* Instalar los paquetes R2jags y rjags de R.
+
+
+### Ejemplo: Función de Verosimilitud Bernoulli 
+
+Ilustraremos el proceso de simulación en JAGS para el caso del sesgo de una moneda $\theta$ que consideramos anteriormente. 
+
+
+#### Especificación de los datos
+
+Primero, especificamos los datos observados:
+
+```{r}
+# N = 14; z = 11
+N <- 14
+x <- c(rep(0, 3), rep(1, 11)) #Datos simulados
+z <- sum(x)
+z
+```
+
+
+#### Especificación del modelo
+
+Consideremos el modelo gráfico asociado:
+
+```{r, fig.height=2.5}
+library(DiagrammeR)
+grViz("
+digraph betabinom {
+
+  # a 'graph' statement
+  graph [overlap = true]
+
+  node [shape = box,penwidth = 0.1, fixedsize = true, fontsize = 9,
+        fontname = Helvetica, width = 0.2, height = 0.2]
+  ab[label = 'a,b']; 
+
+  node [shape = circle,
+        fixedsize = true, fontsize = 9,
+        fontname = Helvetica, width = 0.2] // sets as circles
+  theta[label = '&theta;']; y;
+
+  # several 'edge' statements
+  edge[color = grey, arrowsize = 0.5, penwidth = 0.5]
+  ab->theta; theta->y;
+}
+")
+```
+donde $a,b$ son los hiperparámetros de la distribución inicial Beta de $\theta$, los cuales los elegimos de tal forma que representen nuestras creencias iniciales acerca de $\theta$. 
+
+El diagrama captura las dependencias entre los datos $y$, el parámetro $\theta$ y los hiperparámetros $a,b$. Ésto facilita la implementación en JAGS pues cada flecha en el diagrama corresponde a una línea de código en la especificación del modelo.
+
+Especifiquemos el modelo:
+
+```{r}
+modelo_bb.bugs <-
+    '
+    model{
+        for(i in 1:N){
+            x[i] ~ dbern(theta)
+        }
+        # inicial
+        theta ~ dbeta(1, 1)
+    }
+    '
+```
+
+El ciclo `for` indica que cada dato observado $x_i$ proviene de una distribución Bernoulli con parámetro $\theta$. Afuera del ciclo escribimos la distribución inicial, $\theta \sim Beta(1, 1)$.
+
+
+#### Inicialización de la caminata aleatoria (cadena de Markov)
+
+El modelo ya esta especificado. Aún hace falta especificar el valor inicial de los parámetros $\theta$. JAGS tiene una manera de hacerlo automaticamente, pero muchas veces vale la pena tener control de los valores iniciales. En ocasiones la eficiencia del proceso puede incrementar si seleccionamos valores iniciales razonables. Kruschke sugiere utilizar como valores iniciales los estimadores de máxima verosimilitud de los parámetros; esto es porque usualmente la distribución posterior no está muy lejana de la función de verosimilitud. En este caso el estimador de máxima verosimilitud para $\theta$ es la proporción observada $\hat{\theta}=z/N$.
+
+```{r}
+theta_init <- sum(x) / N
+theta_init
+```
+
+Esta manera de especificar los valores iniciales no siempre es la más recomendada, ya que cuando queremos evaluar la convergencia de la cadena de Markov muchas veces se sugiere correr varias caminatas aleatorias con puntos iniciales dispersos a lo largo del espacio de parámetros, de tal manera que cuando las cadenas de Markov convergen se pueda determinar que la etapa de calentamiento a terminado. 
+
+Un punto medio es iniciar la caminata aleatoria en un punto aleatorio cercano al estimador de máxima verosimilitud:
+
+```{r}
+init_theta <- function(){
+    x_s <- sample(x, replace = TRUE)
+    return(list(theta = sum(x_s) / N))
+}
+init_theta() 
+```
+
+
+#### Generación de la cadena de Markov
+
+Ahora llamamos a JAGS y generamos las cadenas de Markov. Para esto usaremos el paquete 
+`R2jags`; otro paquete para llamar JAGS desde R es `rjags`.
+
+```{r}
+library(R2jags)
+
+cat(modelo_bb.bugs, file = 'modelo_bb.bugs')
+
+jags_fit <- jags(
+    model.file = "modelo_bb.bugs",    # modelo de JAGS
+    inits = init_theta,   # valores iniciales
+    data = list(x = x, N = N),    # lista con los datos
+    parameters.to.save = c("theta"),  # parámetros por guardar
+    n.chains = 1,   # número de cadenas
+    n.iter = 1000,    # número de pasos
+    n.burnin = 500   # calentamiento de la cadena
+    )
+
+# plot(jags_fit)
+```
+
+Podemos ver un resumen del ajuste:
+
+```{r}
+head(jags_fit$BUGSoutput$summary)
+```
+
+y graficar la cadena de Markov:
+
+```{r, fig.height=3.5, fig.width=4.5}
+traceplot(jags_fit, varname = "theta")
+```
+
+
+<!--
+Para generar la muestra MCMC seguimos 3 pasos: primero JAGS recibe la información y deja que este determine los muestreadores apropiados para el modelo, en el segundo paso corremos las cadenas por un periodo de 
+calentamiento y por último corremos las cadenas y registramos la muestra.
+
+-->
+
+```{r, fig.width=7, fig.height=4, message=FALSE, eval = FALSE, echo = FALSE}
+library(rjags)
+
+cat(modelo_bb.bugs, file = 'modelo_bb.bugs')
+
+# 1 modelo
+jags_bb_model <- jags.model(
+    file = "modelo_bb.bugs",    # modelo de JAGS
+    data = list(x = x, N = N),    # lista con los datos
+    inits = init_theta,   # valores iniciales
+    n.chains = 3,   # número de cadenas
+    n.adapt = 500   # pasos para adaptar el muestreador
+    )
+
+# 2 calentamiento
+update(jags_bb_model, n.iter = 500)
+
+# 3 generar muestra
+jags_bb_samples <-  coda.samples(jags_bb_model, 
+    variable.names = c("theta"), # parámetros a monitorear 
+    n.iter = 1000 # número de iteraciones
+    )
+
+plot(jags_bb_samples)
+```
+
+
+### Ejemplo: Función de Verosimilitud Normal
+
+Recordemos el ejemplo Normal con media y varianza desconocidas. 
+
+
+#### Especificación de los datos
+```{r}
+N <- 50 # Observamos 50 realizaciones
+set.seed(122)
+x <- rnorm(N, 2, 2) #Datos simulados
+```
+
+
+#### Especificación del modelo
+
+**Ejercicio:** ¿Cuál es el modelo gráfico asociado?
+
+El modelo es:
+```{r}
+modelo_normal.bugs <-
+    '
+    model{
+        for(i in 1:N){
+            x[i] ~ dnorm(mu, nu)
+        }
+        # iniciales
+        nu ~ dgamma(3, 3)
+        sigma2 <- 1 / nu
+        mu ~ dnorm(1.5, 1 / 16) 
+    }
+    '
+```
+
+El ciclo `for` indica que cada dato observado $x_i$ proviene de una distribución
+Normal con media $\mu$ y precisión $\nu$. Afuera del ciclo
+escribimos las distribuciones iniciales, $\nu \sim Gamma(3, 3)$, esto es, 
+$\sigma^2 \sim GI(3, 3)$; y $\mu \sim N(1.5, 16)$, esto es, $\mu$ se distribuye Normal con media $m=1.5$ y varianza $\tau^2=16$. Note que en JAGS la distribución Normal se especifica en términos de la media y la precisión.
+
+
+#### Inicialización y generación de la caminata aleatoria 
+
+El modelo ya esta especificado, pero aun falta indicar los valores iniciales de los parámetros
+del modelo. Para ésto, definimos los valores en R y después los mandamos a 
+JAGS para generar la caminata aleatoria.
+
+```{r, fig.width=4.5, fig.height=3.5, message=FALSE}
+library(R2jags)
+
+cat(modelo_normal.bugs, file = 'modelo_normal.bugs')
+
+# valores iniciales para los parámetros, si no se especifican la función jags generará valores iniciales (en este caso tomamos valores aleatorios)
+jags_inits <- function(){
+    list(mu = rnorm(1, mean(x), 5), nu = 1 / runif(1, 2, 4)) 
+}
+
+jags_fit <- jags(
+    model.file = "modelo_normal.bugs",    # modelo de JAGS
+    inits = jags_inits,   # valores iniciales
+    data = list(x = x, N = N),    # lista con los datos
+    parameters.to.save = c("mu", "sigma2"),  # parámetros por guardar
+    n.chains = 1,   # número de cadenas
+    n.iter = 10000,    # número de pasos
+    n.burnin = 1000,   # calentamiento de la cadena
+    n.thin = 1
+    )
+
+jags_fit
+
+# podemos ver las cadenas
+traceplot(jags_fit, varname = c("mu", "sigma2"))
+
+```
+
+<!--2. **Predicción:** Podemos realizar predicciones utilizando `jags_fit$BUGSoutput$sims.matrix`.
+
+```{r, fig.width=7, fig.height=4}
+# jags_fit <- jags(
+#     model.file = "modelo_normal.bugs",    # modelo de JAGS
+#     inits = list(jags_inits()),   # valores iniciales
+#     data = list(x = c(NA, x), N = N + 1),    # lista con los datos
+#     parameters.to.save = c("mu", "sigma2", "x"),  # parámetros por guardar
+#     n.chains = 1,   # número de cadenas
+#     n.iter = 10000,    # número de pasos
+#     n.burnin = 1000,   # calentamiento de la cadena
+#     n.thin = 1
+#     )
+head(jags_fit$BUGSoutput$summary)
+
+mus <- jags_fit$BUGSoutput$sims.matrix[, "mu"]
+sigmas <- sqrt(jags_fit$BUGSoutput$sims.matrix[, "sigma2"])
+y <- rnorm(length(mus), mus, sigmas)
+
+mean(y)
+sd(y)
+```
+-->
+
+
+### Diagnósticos
+
+Cuando generamos una muestra de la distribución posterior usando MCMC, buscamos que:
+
+1. Los valores simulados sean representativos de la distribución posterior, esto 
+implica que no deben estar influenciados por el valor inicial (arbitrario) y 
+deben explorar todo el rango de la posterior.
+
+2. Debemos tener suficientes simulaciones de tal manera que las estimaciones 
+sean precisas y estables.
+
+3. Queremos tener un método eficiente para generar las simulaciones.
+
+En la práctica, intentamos cumplir lo más posible estos objetivos, pues aunque en
+principio los métodos MCMC garantizan que cadenas de Markov infinitamente largas lograran 
+una representación perfecta de la distribución posterior (convergen), siempre debemos tener un criterio para cortar la cadena (finita) y evaluar la calidad de las simulaciones (velocidad de convergencia).
+
+#### Representatividad
+Para determinar la convergencia de la cadena de Markov es conveniente realizar más de una 
+cadena; buscamos ver si realmente se ha olvidado el estado inicial y revisar 
+que algunas cadenas no hayan quedado *atoradas* en regiones inusuales del espacio
+de parámetros.
+
+Consideremos 3 cadenas de Markov:
+```{r, fig.height=3.5, fig.width=4.5}
+jags_fit <- jags(
+    model.file = "modelo_normal.bugs",    # modelo de JAGS
+    inits = rerun(3, jags_inits()),   # valores iniciales
+    data = list(x = x, N = N),    # lista con los datos
+    parameters.to.save = c("mu", "nu", "sigma2"),  # parámetros por guardar
+    n.chains = 3,   # número de cadenas
+    n.iter = 50,    # número de pasos
+    n.burnin = 0,   # calentamiento de la cadena
+    n.thin = 1
+    )
+
+# podemos ver las cadenas
+traceplot(jags_fit, varname = c("mu", "sigma2"))
+```
+
+Las gráficas anteriores nos pueden ayudar, mediante una inspección visual, a determinar si elegimos un periodo de calentamiento adecuado o si alguna(s) cadena(s) está(n) alejada(s) del resto.
+
+Además de realizar gráficas podemos usar la medida de convergencia $\hat{R}$ que la función `jags` calcula por omisión para una cadena de Markov:
+
+```{r}
+jags_fit$BUGSoutput$summary
+```
+
+La medida $\hat{R}$ se conoce como el **factor de reducción potencial de 
+escala** o **diagnóstico de convergencia de Gelman-Rubin**, éste es la posible reducción en la longitud de un intervalo de confianza si las simulaciones continuaran infinitamente. 
+
+<!-- $\hat{R}$ es 
+aproximadamente la raíz cuadrada de la varianza de todas las 
+cadenas juntas dividida entre la varianza dentro de cada cadena. Si $\hat{R}$ es mucho mayor a 1 esto indica que las cadenas no se han mezclado bien.--> 
+
+Una regla usual es iterar hasta alcanzar un valor $\hat{R} \leq 1.1$ para todos los 
+parámetros.
+
+<!--
+$$\hat{R} = \sqrt{\frac{\hat{d}+3}{\hat{d}+1}\frac{\hat{V}}{W}}$$
+
+donde $B$ es la varianza entre las cadenas, $W$ es la varianza dentro de las cadenas 
+
+$$B = \frac{N}{M-1}\sum_m (\hat{\theta_m} - \hat{\theta})^2$$
+$$W = \frac{1}{M}\sum_m \hat{\sigma_m}^2$$
+Y $\hat{V}$ es una estimación del varianza de posteriro de $\theta$:
+
+$$\hat{V} = \frac{N-1}{N}W + \frac{M+1}{MN}B$$
+-->
+
+
+#### Precisión
+
+Una vez que tenemos una muestra representativa de la distribución posterior, 
+nuestro objetivo es asegurarnos de que la muestra es lo suficientemente grande 
+para producir estimaciones estables y precisas de la distribución posterior.
+
+Para ello usaremos la salida `n.eff` de la función `jags`, que es el 
+**tamaño efectivo de muestra**. Si las simulaciones fueran independientes, 
+`n.eff` sería el número total de simulaciones; sin embargo, las simulaciones de
+MCMC suelen estar correlacionadas, el tamaño efectivo nos dice qué tamaño de 
+muestra de observaciones independientes nos daría la misma información que las
+simulaciones de la cadena de Markov.
+
+<!--$$NEM = \frac{N}{1+2\sum_{k=1}^\infty ACF(k)} $$-->
+
+Usualmente nos gustaría obtener un tamaño efectivo de al menos $100$.
+
+
+#### Eficiencia
+
+Hay varias maneras para mejorar la eficiencia de un proceso MCMC:
+
+* **Paralelizar:** no disminuimos el número de pasos en las simulaciones pero 
+podemos disminuir el tiempo que tarda en correr.
+
+* **Cambiar la parametrización** del modelo o **transformar los datos**. En el caso 
+de variables continuas suele ser conveniente centrar los datos. Otra opción es
+utilizar parametrizaciones redundantes.
+
+* **Adelgazar la muestra:** esto nos puede ayudar a disminuir el uso de memoria, 
+consiste en guardar únicamente los $k$-ésimos pasos de la cadena. Esto resulta
+en cadenas con menos autocorrelación.
+
+
+### Recomendaciones generales
+
+Gelman recomienda los siguientes pasos cuando uno esta simulando de la posterior:
+
+1. Cuando definimos un modelo por primera vez, establecer un valor bajo para 
+`n.iter`, por ejemplo 10 o 50. La razón es que la mayor parte de las veces los 
+modelos no funcionan a la primera por lo que sería pérdida de tiempo dejarlo 
+correr mucho tiempo antes de descubrir el problema.
+
+2. Si las simulaciones no han alcanzado convergencia aumentamos las iteraciones 
+a 500 o 1000, de tal forma que las corridas tarden segundos o unos cuantos 
+minutos.
+
+3. Si JAGS tarda más que unos cuantos minutos (para problemas del tamaño que 
+estamos viendo en la clase) y aún así no alcanza convergencia, entonces _juega_ un poco 
+con el modelo (por ejemplo intenta transformaciones lineales). Gelman sugiere 
+más técnicas para acelerar la convergencia en el capitulo 19 del libro 
+[Data Analysis Using Regression and Multilevel/Hierarchical models](http://www.stat.columbia.edu/~gelman/arm/).
+
+4. Otra técnica conveniente cuando se trabaja con bases de datos grandes 
+(sobretodo para la parte exploratoria) es trabajar con un subconjunto de los 
+datos, quizás la mitad o una quinta parte.
+
+
+
+
 ### Referencias
 
 * [Understanding Computational Bayesian Statistics](https://www.amazon.com/Understanding-Computational-Bayesian-Statistics-William/dp/0470046090), William M. Bolstad.
